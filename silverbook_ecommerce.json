@@ -1,0 +1,705 @@
+{
+	"info": {
+		"_postman_id": "accounts-api-collection",
+		"name": "Silver Bookstore - Accounts API",
+		"description": "Complete API collection for the Accounts app endpoints",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{access_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string"
+		},
+		{
+			"key": "access_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "refresh_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "username",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "user_id",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Signup",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('access_token', jsonData.access);",
+									"    pm.collectionVariables.set('refresh_token', jsonData.refresh);",
+									"    pm.collectionVariables.set('username', jsonData.user.username);",
+									"    pm.collectionVariables.set('user_id', jsonData.user.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"testuser\",\n    \"password\": \"testpass123\",\n    \"name\": \"Test User\",\n    \"email\": \"testuser@example.com\",\n    \"phone\": \"01234567890\",\n    \"user_type\": \"student\",\n    \"year\": \"first-secondary\",\n    \"division\": \"علمى رياضة\",\n    \"government\": \"1\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/accounts/signup/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"accounts",
+								"signup",
+								""
+							]
+						},
+						"description": "Register a new user account"
+					},
+					"response": []
+				},
+				{
+					"name": "Signin",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('access_token', jsonData.access);",
+									"    pm.collectionVariables.set('refresh_token', jsonData.refresh);",
+									"    pm.collectionVariables.set('username', jsonData.user.username);",
+									"    pm.collectionVariables.set('user_id', jsonData.user.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"testuser\",\n    \"password\": \"testpass123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/accounts/signin/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"accounts",
+								"signin",
+								""
+							]
+						},
+						"description": "Login with username and password"
+					},
+					"response": []
+				},
+				{
+					"name": "Refresh Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('access_token', jsonData.access);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"refresh\": \"{{refresh_token}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/accounts/token/refresh/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"accounts",
+								"token",
+								"refresh",
+								""
+							]
+						},
+						"description": "Refresh the access token using refresh token"
+					},
+					"response": []
+				}
+			],
+			"description": "Authentication related endpoints"
+		},
+		{
+			"name": "Password Management",
+			"item": [
+				{
+					"name": "Request Password Reset (OTP)",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"phone\": \"01234567890\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/accounts/password-reset/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"accounts",
+								"password-reset",
+								""
+							]
+						},
+						"description": "Request password reset OTP via WhatsApp"
+					},
+					"response": []
+				},
+				{
+					"name": "Confirm Password Reset",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"phone\": \"01234567890\",\n    \"otp\": \"123456\",\n    \"new_password\": \"newpassword123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/accounts/password-reset/confirm/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"accounts",
+								"password-reset",
+								"confirm",
+								""
+							]
+						},
+						"description": "Reset password using OTP"
+					},
+					"response": []
+				},
+				{
+					"name": "Change Password (Authenticated)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"old_password\": \"currentpassword123\",\n    \"new_password\": \"newpassword123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/accounts/change-password/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"accounts",
+								"change-password",
+								""
+							]
+						},
+						"description": "Change password for authenticated user"
+					},
+					"response": []
+				}
+			],
+			"description": "Password reset and change endpoints"
+		},
+		{
+			"name": "User Profile",
+			"item": [
+				{
+					"name": "Get User Data",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/accounts/get-user-data/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"accounts",
+								"get-user-data",
+								""
+							]
+						},
+						"description": "Get current authenticated user's data"
+					},
+					"response": []
+				},
+				{
+					"name": "Update User Data",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Updated Name\",\n    \"phone\": \"01234567890\",\n    \"phone2\": \"01987654321\",\n    \"email\": \"updated@example.com\",\n    \"government\": \"2\",\n    \"year\": \"second-secondary\",\n    \"division\": \"علمى علوم\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/accounts/update-user-data/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"accounts",
+								"update-user-data",
+								""
+							]
+						},
+						"description": "Update current authenticated user's data"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Profile",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/accounts/profile/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"accounts",
+								"profile",
+								""
+							]
+						},
+						"description": "Get detailed user profile with pills and loved products"
+					},
+					"response": []
+				}
+			],
+			"description": "User profile management endpoints"
+		},
+		{
+			"name": "Admin - User Management",
+			"item": [
+				{
+					"name": "Create Admin User",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"admin\",\n    \"password\": \"adminpass123\",\n    \"name\": \"Admin User\",\n    \"email\": \"admin@silverbookstore.com\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/accounts/dashboard/create-admin-user/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"accounts",
+								"dashboard",
+								"create-admin-user",
+								""
+							]
+						},
+						"description": "Create a new admin user with staff and superuser privileges"
+					},
+					"response": []
+				},
+				{
+					"name": "List All Users",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/accounts/dashboard/users/?search=&ordering=-created_at&is_staff=&year=&government=",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"accounts",
+								"dashboard",
+								"users",
+								""
+							],
+							"query": [
+								{
+									"key": "search",
+									"value": "",
+									"description": "Search by username, name, email, phone, government"
+								},
+								{
+									"key": "ordering",
+									"value": "-created_at",
+									"description": "Order by: created_at, cart_items_count, loved_count"
+								},
+								{
+									"key": "is_staff",
+									"value": "",
+									"description": "Filter by staff status (true/false)"
+								},
+								{
+									"key": "year",
+									"value": "",
+									"description": "Filter by year (first-secondary, second-secondary, third-secondary)"
+								},
+								{
+									"key": "government",
+									"value": "",
+									"description": "Filter by government (1-27)"
+								}
+							]
+						},
+						"description": "List all users with filtering, searching, and ordering capabilities"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Details",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/accounts/dashboard/users/{{user_id}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"accounts",
+								"dashboard",
+								"users",
+								"{{user_id}}",
+								""
+							]
+						},
+						"description": "Get detailed information about a specific user"
+					},
+					"response": []
+				},
+				{
+					"name": "Create User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"newuser\",\n    \"password\": \"newuserpass123\",\n    \"name\": \"New User\",\n    \"email\": \"newuser@example.com\",\n    \"phone\": \"01122334455\",\n    \"user_type\": \"student\",\n    \"year\": \"first-secondary\",\n    \"division\": \"علمى رياضة\",\n    \"government\": \"1\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/accounts/dashboard/users/create/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"accounts",
+								"dashboard",
+								"users",
+								"create",
+								""
+							]
+						},
+						"description": "Create a new user (admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Update User",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Updated User Name\",\n    \"email\": \"updatedemail@example.com\",\n    \"phone\": \"01234567890\",\n    \"government\": \"3\",\n    \"year\": \"third-secondary\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/accounts/dashboard/users/update/{{username}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"accounts",
+								"dashboard",
+								"users",
+								"update",
+								"{{username}}",
+								""
+							]
+						},
+						"description": "Update user data by username (admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete User",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/accounts/dashboard/users/delete/{{user_id}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"accounts",
+								"dashboard",
+								"users",
+								"delete",
+								"{{user_id}}",
+								""
+							]
+						},
+						"description": "Delete a user by ID (admin only)"
+					},
+					"response": []
+				}
+			],
+			"description": "Admin endpoints for user management"
+		},
+		{
+			"name": "Admin - Profile Images",
+			"item": [
+				{
+					"name": "List Profile Images",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/accounts/dashboard/profile-images/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"accounts",
+								"dashboard",
+								"profile-images",
+								""
+							]
+						},
+						"description": "List all profile images (public access)"
+					},
+					"response": []
+				},
+				{
+					"name": "Upload Profile Image",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "image",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/accounts/dashboard/profile-images/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"accounts",
+								"dashboard",
+								"profile-images",
+								""
+							]
+						},
+						"description": "Upload a new profile image (admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Profile Image Details",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/accounts/dashboard/profile-images/1/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"accounts",
+								"dashboard",
+								"profile-images",
+								"1",
+								""
+							]
+						},
+						"description": "Get details of a specific profile image"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Profile Image",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "image",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/accounts/dashboard/profile-images/1/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"accounts",
+								"dashboard",
+								"profile-images",
+								"1",
+								""
+							]
+						},
+						"description": "Update a profile image"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Profile Image",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/accounts/dashboard/profile-images/1/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"accounts",
+								"dashboard",
+								"profile-images",
+								"1",
+								""
+							]
+						},
+						"description": "Delete a profile image"
+					},
+					"response": []
+				}
+			],
+			"description": "Profile image management endpoints"
+		}
+	]
+}
