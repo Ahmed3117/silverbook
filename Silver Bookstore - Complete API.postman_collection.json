@@ -1,0 +1,2412 @@
+{
+	"info": {
+		"_postman_id": "a1b2c3d4-e5f6-47g8-h9i0-j1k2l3m4n5o6",
+		"name": "Silver Bookstore - Complete API (Accounts + Products)",
+		"description": "Complete API collection for Silver Bookstore - Accounts & Products apps with Customer and Dashboard flows",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "33824171"
+	},
+	"item": [
+		{
+			"name": "Accounts",
+			"item": [
+				{
+					"name": "Authentication",
+					"item": [
+						{
+							"name": "Signup",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    var jsonData = pm.response.json();",
+											"    pm.collectionVariables.set('access_token', jsonData.access);",
+											"    pm.collectionVariables.set('refresh_token', jsonData.refresh);",
+											"    pm.collectionVariables.set('username', jsonData.user.username);",
+											"    pm.collectionVariables.set('user_id', jsonData.user.id);",
+											"}"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"username\": \"studentuser1\",\n    \"password\": \"testpass123\",\n    \"name\": \"Student User\",\n    \"email\": \"student@example.com\",\n    \"phone\": \"01234567890\",\n    \"user_type\": \"student\",\n    \"year\": \"first-secondary\",\n    \"division\": \"علمى رياضة\",\n    \"government\": \"1\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/accounts/signup/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"accounts",
+										"signup",
+										""
+									]
+								},
+								"description": "Register a new user account"
+							},
+							"response": []
+						},
+						{
+							"name": "Signin",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 200) {",
+											"    var jsonData = pm.response.json();",
+											"    pm.collectionVariables.set('access_token', jsonData.access);",
+											"    pm.collectionVariables.set('refresh_token', jsonData.refresh);",
+											"    pm.collectionVariables.set('username', jsonData.user.username);",
+											"    pm.collectionVariables.set('user_id', jsonData.user.id);",
+											"}"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"username\": \"studentuser1\",\n    \"password\": \"testpass123\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/accounts/signin/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"accounts",
+										"signin",
+										""
+									]
+								},
+								"description": "Login with username and password"
+							},
+							"response": []
+						},
+						{
+							"name": "Refresh Token",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 200) {",
+											"    var jsonData = pm.response.json();",
+											"    pm.collectionVariables.set('access_token', jsonData.access);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"refresh\": \"{{refresh_token}}\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/accounts/token/refresh/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"accounts",
+										"token",
+										"refresh",
+										""
+									]
+								},
+								"description": "Refresh the access token using refresh token"
+							},
+							"response": []
+						}
+					],
+					"description": "Authentication related endpoints"
+				},
+				{
+					"name": "User Profile",
+					"item": [
+						{
+							"name": "Get User Data",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/accounts/get-user-data/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"accounts",
+										"get-user-data",
+										""
+									]
+								},
+								"description": "Get current authenticated user's data"
+							},
+							"response": []
+						},
+						{
+							"name": "Update User Data",
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"Updated Name\",\n    \"phone\": \"01234567890\",\n    \"email\": \"updated@example.com\",\n    \"government\": \"2\",\n    \"year\": \"second-secondary\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/accounts/update-user-data/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"accounts",
+										"update-user-data",
+										""
+									]
+								},
+								"description": "Update current authenticated user's data"
+							},
+							"response": []
+						}
+					],
+					"description": "User profile management endpoints"
+				}
+			]
+		},
+		{
+			"name": "Products - Customer Flow",
+			"item": [
+				{
+					"name": "Browse Products",
+					"item": [
+						{
+							"name": "Get All Categories",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/categories/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"categories",
+										""
+									]
+								},
+								"description": "List all product categories"
+							},
+							"response": []
+						},
+						{
+							"name": "Get All Subjects",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/subjects/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"subjects",
+										""
+									]
+								},
+								"description": "List all subjects"
+							},
+							"response": []
+						},
+						{
+							"name": "Get All Teachers",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/teachers/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"teachers",
+										""
+									]
+								},
+								"description": "List all teachers"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Teacher Details",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/teachers/1/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"teachers",
+										"1",
+										""
+									]
+								},
+								"description": "Get detailed information about a specific teacher"
+							},
+							"response": []
+						},
+						{
+							"name": "Get All Products (with filters)",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/products/?category=1&subject=1&teacher=1&year=first-secondary&search=mathematics",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"products",
+										""
+									],
+									"query": [
+										{
+											"key": "category",
+											"value": "1",
+											"disabled": true
+										},
+										{
+											"key": "subject",
+											"value": "1",
+											"disabled": true
+										},
+										{
+											"key": "teacher",
+											"value": "1",
+											"disabled": true
+										},
+										{
+											"key": "year",
+											"value": "first-secondary",
+											"disabled": true
+										},
+										{
+											"key": "search",
+											"value": "mathematics",
+											"disabled": true
+										}
+									]
+								},
+								"description": "List products with optional filters"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Product Details",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/products/1/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"products",
+										"1",
+										""
+									]
+								},
+								"description": "Get detailed information about a specific product"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Special Products",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/special-products/active/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"special-products",
+										"active",
+										""
+									]
+								},
+								"description": "Get active special products"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Best Products",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/best-products/active/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"best-products",
+										"active",
+										""
+									]
+								},
+								"description": "Get active best products"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Products with Active Discounts",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/discounts/active/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"discounts",
+										"active",
+										""
+									]
+								},
+								"description": "Get products with active discounts"
+							},
+							"response": []
+						}
+					],
+					"description": "Browse and search products"
+				},
+				{
+					"name": "Shopping Cart",
+					"item": [
+						{
+							"name": "View Cart",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/cart/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"cart",
+										""
+									]
+								},
+								"description": "Get current user's shopping cart"
+							},
+							"response": []
+						},
+						{
+							"name": "Add Item to Cart",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201 || pm.response.code === 200) {",
+											"    var jsonData = pm.response.json();",
+											"    pm.collectionVariables.set('pill_item_id', jsonData.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"product\": 1,\n    \"quantity\": 1\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/products/cart/add/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"cart",
+										"add",
+										""
+									]
+								},
+								"description": "Add a product to cart"
+							},
+							"response": []
+						},
+						{
+							"name": "Update Cart Item",
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"quantity\": 2\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/products/cart/update/{{pill_item_id}}/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"cart",
+										"update",
+										"{{pill_item_id}}",
+										""
+									]
+								},
+								"description": "Update quantity of an item in cart"
+							},
+							"response": []
+						},
+						{
+							"name": "Remove Item from Cart",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/cart/delete/{{pill_item_id}}/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"cart",
+										"delete",
+										"{{pill_item_id}}",
+										""
+									]
+								},
+								"description": "Remove an item from cart"
+							},
+							"response": []
+						}
+					],
+					"description": "Shopping cart operations"
+				},
+				{
+					"name": "Checkout & Orders",
+					"item": [
+						{
+							"name": "Create Order (Pill)",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    var jsonData = pm.response.json();",
+											"    pm.collectionVariables.set('pill_id', jsonData.id);",
+											"    pm.collectionVariables.set('pill_number', jsonData.pill_number);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{}"
+								},
+								"url": {
+									"raw": "{{base_url}}/products/pills/init/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"pills",
+										"init",
+										""
+									]
+								},
+								"description": "Create an order from cart items"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Order Details",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/pills/{{pill_id}}/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"pills",
+										"{{pill_id}}",
+										""
+									]
+								},
+								"description": "Get details of a specific order"
+							},
+							"response": []
+						},
+						{
+							"name": "Get User's Orders",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/user-pills/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"user-pills",
+										""
+									]
+								},
+								"description": "Get all orders for current user"
+							},
+							"response": []
+						},
+						{
+							"name": "Apply Coupon to Order",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"coupon\": \"a-1-@\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/products/pills/{{pill_id}}/apply-coupon/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"pills",
+										"{{pill_id}}",
+										"apply-coupon",
+										""
+									]
+								},
+								"description": "Apply a coupon code to an order"
+							},
+							"response": []
+						}
+					],
+					"description": "Checkout and order management"
+				},
+				{
+					"name": "Ratings & Reviews",
+					"item": [
+						{
+							"name": "List Product Ratings",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/ratings/?search=product_id:1",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"ratings",
+										""
+									],
+									"query": [
+										{
+											"key": "search",
+											"value": "product_id:1"
+										}
+									]
+								},
+								"description": "List ratings and reviews for products"
+							},
+							"response": []
+						},
+						{
+							"name": "Create Rating",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"product\": 1,\n    \"star_number\": 5,\n    \"review\": \"Excellent product! Very helpful for my studies.\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/products/ratings/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"ratings",
+										""
+									]
+								},
+								"description": "Create a new rating/review"
+							},
+							"response": []
+						},
+						{
+							"name": "Update My Rating",
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"star_number\": 4,\n    \"review\": \"Updated review - Still good!\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/products/ratings/1/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"ratings",
+										"1",
+										""
+									]
+								},
+								"description": "Update your rating"
+							},
+							"response": []
+						},
+						{
+							"name": "Delete My Rating",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/ratings/1/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"ratings",
+										"1",
+										""
+									]
+								},
+								"description": "Delete your rating"
+							},
+							"response": []
+						}
+					],
+					"description": "Ratings and reviews"
+				},
+				{
+					"name": "Wishlist & Favorites",
+					"item": [
+						{
+							"name": "Get Loved Products",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/loved-products/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"loved-products",
+										""
+									]
+								},
+								"description": "Get user's favorite products"
+							},
+							"response": []
+						},
+						{
+							"name": "Add Product to Favorites",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    var jsonData = pm.response.json();",
+											"    pm.collectionVariables.set('loved_product_id', jsonData.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"product\": 1\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/products/loved-products/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"loved-products",
+										""
+									]
+								},
+								"description": "Add a product to favorites"
+							},
+							"response": []
+						},
+						{
+							"name": "Remove Product from Favorites",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/loved-products/{{loved_product_id}}/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"loved-products",
+										"{{loved_product_id}}",
+										""
+									]
+								},
+								"description": "Remove a product from favorites"
+							},
+							"response": []
+						}
+					],
+					"description": "Wishlist and favorite products"
+				}
+			]
+		},
+		{
+			"name": "Products - Dashboard (Admin)",
+			"item": [
+				{
+					"name": "Categories Management",
+					"item": [
+						{
+							"name": "List Categories",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/categories/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"categories",
+										""
+									]
+								},
+								"description": "List all categories (admin)"
+							},
+							"response": []
+						},
+						{
+							"name": "Create Category",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    var jsonData = pm.response.json();",
+											"    pm.collectionVariables.set('category_id', jsonData.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "name",
+											"value": "Mathematics",
+											"type": "text"
+										},
+										{
+											"key": "image",
+											"type": "file"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/categories/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"categories",
+										""
+									]
+								},
+								"description": "Create a new category with form-data (for image upload). To upload an image: 1. Ensure body type is 'formdata' 2. Set 'image' field type to 'File' 3. Click file picker and select your image 4. Send request"
+							},
+							"response": []
+						},
+						{
+							"name": "Update Category",
+							"request": {
+								"method": "PATCH",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "name",
+											"value": "Advanced Mathematics",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "image",
+											"type": "file"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/categories/{{category_id}}/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"categories",
+										"{{category_id}}",
+										""
+									]
+								},
+								"description": "Update a category with form-data (for image upload). To upload an image: 1. Enable the 'name' field if you want to update the name 2. Set 'image' field type to 'File' 3. Click file picker and select your image 4. Send request"
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Category",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/categories/{{category_id}}/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"categories",
+										"{{category_id}}",
+										""
+									]
+								},
+								"description": "Delete a category"
+							},
+							"response": []
+						}
+					],
+					"description": "Category management"
+				},
+				{
+					"name": "Subjects Management",
+					"item": [
+						{
+							"name": "List Subjects",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/subjects/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"subjects",
+										""
+									]
+								},
+								"description": "List all subjects (admin)"
+							},
+							"response": []
+						},
+						{
+							"name": "Create Subject",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    var jsonData = pm.response.json();",
+											"    pm.collectionVariables.set('subject_id', jsonData.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"Mathematics\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/subjects/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"subjects",
+										""
+									]
+								},
+								"description": "Create a new subject"
+							},
+							"response": []
+						},
+						{
+							"name": "Update Subject",
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"Advanced Mathematics\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/subjects/{{subject_id}}/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"subjects",
+										"{{subject_id}}",
+										""
+									]
+								},
+								"description": "Update a subject"
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Subject",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/subjects/{{subject_id}}/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"subjects",
+										"{{subject_id}}",
+										""
+									]
+								},
+								"description": "Delete a subject"
+							},
+							"response": []
+						}
+					],
+					"description": "Subject management"
+				},
+				{
+					"name": "Teachers Management",
+					"item": [
+						{
+							"name": "List Teachers",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/teachers/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"teachers",
+										""
+									]
+								},
+								"description": "List all teachers (admin)"
+							},
+							"response": []
+						},
+						{
+							"name": "Create Teacher",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    var jsonData = pm.response.json();",
+											"    pm.collectionVariables.set('teacher_id', jsonData.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "name",
+											"value": "Ahmed El-Sayed",
+											"type": "text"
+										},
+										{
+											"key": "bio",
+											"value": "Expert Mathematics Teacher",
+											"type": "text"
+										},
+										{
+											"key": "subject",
+											"value": "1",
+											"type": "text"
+										},
+										{
+											"key": "image",
+											"type": "file"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/teachers/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"teachers",
+										""
+									]
+								},
+								"description": "Create a new teacher with form-data (for image upload)"
+							},
+							"response": []
+						},
+						{
+							"name": "Update Teacher",
+							"request": {
+								"method": "PATCH",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "name",
+											"value": "Ahmed El-Sayed Updated",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "image",
+											"type": "file"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/teachers/{{teacher_id}}/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"teachers",
+										"{{teacher_id}}",
+										""
+									]
+								},
+								"description": "Update a teacher with form-data (for image upload)"
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Teacher",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/teachers/{{teacher_id}}/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"teachers",
+										"{{teacher_id}}",
+										""
+									]
+								},
+								"description": "Delete a teacher"
+							},
+							"response": []
+						}
+					],
+					"description": "Teacher management"
+				},
+				{
+					"name": "Products Management",
+					"item": [
+						{
+							"name": "List Products (Admin)",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/products/?search=&ordering=-date_added",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"products",
+										""
+									],
+									"query": [
+										{
+											"key": "search",
+											"value": ""
+										},
+										{
+											"key": "ordering",
+											"value": "-date_added"
+										}
+									]
+								},
+								"description": "List all products for admin"
+							},
+							"response": []
+						},
+						{
+							"name": "Create Product",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    var jsonData = pm.response.json();",
+											"    pm.collectionVariables.set('product_id', jsonData.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "name",
+											"value": "Algebra Fundamentals",
+											"type": "text"
+										},
+										{
+											"key": "category",
+											"value": "1",
+											"type": "text"
+										},
+										{
+											"key": "subject",
+											"value": "1",
+											"type": "text"
+										},
+										{
+											"key": "teacher",
+											"value": "1",
+											"type": "text"
+										},
+										{
+											"key": "price",
+											"value": "149.99",
+											"type": "text"
+										},
+										{
+											"key": "description",
+											"value": "Complete guide to algebra basics and advanced concepts",
+											"type": "text"
+										},
+										{
+											"key": "year",
+											"value": "first-secondary",
+											"type": "text"
+										},
+										{
+											"key": "language",
+											"value": "ar",
+											"type": "text"
+										},
+										{
+											"key": "is_available",
+											"value": "true",
+											"type": "text"
+										},
+										{
+											"key": "pdf_file",
+											"type": "file"
+										},
+										{
+											"key": "base_image",
+											"type": "file"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/products/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"products",
+										""
+									]
+								},
+								"description": "Create a new product with form-data (for PDF and image upload). To upload files: 1. Ensure body type is 'formdata' 2. Set 'pdf_file' and 'base_image' field types to 'File' 3. Click file picker for each file 4. Send request"
+							},
+							"response": []
+						},
+						{
+							"name": "Update Product",
+							"request": {
+								"method": "PATCH",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "name",
+											"value": "Algebra Advanced",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "price",
+											"value": "199.99",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "description",
+											"value": "Updated description for algebra course",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "is_available",
+											"value": "true",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "pdf_file",
+											"type": "file"
+										},
+										{
+											"key": "base_image",
+											"type": "file"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/products/{{product_id}}/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"products",
+										"{{product_id}}",
+										""
+									]
+								},
+								"description": "Update a product with form-data (for PDF and image upload). To update files: 1. Enable the text fields you want to update 2. Set 'pdf_file' and 'base_image' field types to 'File' 3. Click file picker to upload new files 4. Send request"
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Product",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/products/{{product_id}}/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"products",
+										"{{product_id}}",
+										""
+									]
+								},
+								"description": "Delete a product"
+							},
+							"response": []
+						}
+					],
+					"description": "Product management"
+				},
+				{
+					"name": "Product Images Management",
+					"item": [
+						{
+							"name": "List Product Images",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/product-images/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"product-images",
+										""
+									]
+								},
+								"description": "List all product images (admin)"
+							},
+							"response": []
+						},
+						{
+							"name": "Create Product Image",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    var jsonData = pm.response.json();",
+											"    pm.collectionVariables.set('product_image_id', jsonData.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "product",
+											"value": "1",
+											"type": "text"
+										},
+										{
+											"key": "image",
+											"type": "file"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/product-images/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"product-images",
+										""
+									]
+								},
+								"description": "Create a new product image with form-data (for image upload)"
+							},
+							"response": []
+						},
+						{
+							"name": "Update Product Image",
+							"request": {
+								"method": "PATCH",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "image",
+											"type": "file"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/product-images/{{product_image_id}}/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"product-images",
+										"{{product_image_id}}",
+										""
+									]
+								},
+								"description": "Update a product image with form-data (for image upload)"
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Product Image",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/product-images/{{product_image_id}}/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"product-images",
+										"{{product_image_id}}",
+										""
+									]
+								},
+								"description": "Delete a product image"
+							},
+							"response": []
+						}
+					],
+					"description": "Product images management"
+				},
+				{
+					"name": "Special Products Management",
+					"item": [
+						{
+							"name": "List Special Products",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/special-products/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"special-products",
+										""
+									]
+								},
+								"description": "List all special products (admin)"
+							},
+							"response": []
+						},
+						{
+							"name": "Create Special Product",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    var jsonData = pm.response.json();",
+											"    pm.collectionVariables.set('special_product_id', jsonData.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "product",
+											"value": "1",
+											"type": "text"
+										},
+										{
+											"key": "image",
+											"type": "file"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/special-products/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"special-products",
+										""
+									]
+								},
+								"description": "Create a new special product with form-data (for image upload)"
+							},
+							"response": []
+						},
+						{
+							"name": "Update Special Product",
+							"request": {
+								"method": "PATCH",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "image",
+											"type": "file"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/special-products/{{special_product_id}}/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"special-products",
+										"{{special_product_id}}",
+										""
+									]
+								},
+								"description": "Update a special product with form-data (for image upload)"
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Special Product",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/special-products/{{special_product_id}}/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"special-products",
+										"{{special_product_id}}",
+										""
+									]
+								},
+								"description": "Delete a special product"
+							},
+							"response": []
+						}
+					],
+					"description": "Special products management"
+				},
+				{
+					"name": "Best Products Management",
+					"item": [
+						{
+							"name": "List Best Products",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/best-products/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"best-products",
+										""
+									]
+								},
+								"description": "List all best products (admin)"
+							},
+							"response": []
+						},
+						{
+							"name": "Create Best Product",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    var jsonData = pm.response.json();",
+											"    pm.collectionVariables.set('best_product_id', jsonData.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "product",
+											"value": "1",
+											"type": "text"
+										},
+										{
+											"key": "image",
+											"type": "file"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/best-products/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"best-products",
+										""
+									]
+								},
+								"description": "Create a new best product with form-data (for image upload)"
+							},
+							"response": []
+						},
+						{
+							"name": "Update Best Product",
+							"request": {
+								"method": "PATCH",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "image",
+											"type": "file"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/best-products/{{best_product_id}}/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"best-products",
+										"{{best_product_id}}",
+										""
+									]
+								},
+								"description": "Update a best product with form-data (for image upload)"
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Best Product",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/best-products/{{best_product_id}}/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"best-products",
+										"{{best_product_id}}",
+										""
+									]
+								},
+								"description": "Delete a best product"
+							},
+							"response": []
+						}
+					],
+					"description": "Best products management"
+				},
+				{
+					"name": "Discounts Management",
+					"item": [
+						{
+							"name": "List Discounts",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/discounts/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"discounts",
+										""
+									]
+								},
+								"description": "List all discounts"
+							},
+							"response": []
+						},
+						{
+							"name": "Create Discount",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    var jsonData = pm.response.json();",
+											"    pm.collectionVariables.set('discount_id', jsonData.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"product\": 1,\n    \"discount\": 20,\n    \"discount_start\": \"2025-01-01T00:00:00Z\",\n    \"discount_end\": \"2025-12-31T23:59:59Z\",\n    \"is_active\": true\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/discounts/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"discounts",
+										""
+									]
+								},
+								"description": "Create a new discount"
+							},
+							"response": []
+						},
+						{
+							"name": "Update Discount",
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"discount\": 25,\n    \"is_active\": true\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/discounts/{{discount_id}}/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"discounts",
+										"{{discount_id}}",
+										""
+									]
+								},
+								"description": "Update a discount"
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Discount",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/discounts/{{discount_id}}/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"discounts",
+										"{{discount_id}}",
+										""
+									]
+								},
+								"description": "Delete a discount"
+							},
+							"response": []
+						}
+					],
+					"description": "Discount management"
+				},
+				{
+					"name": "Coupons Management",
+					"item": [
+						{
+							"name": "List Coupons",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/coupons/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"coupons",
+										""
+									]
+								},
+								"description": "List all coupons"
+							},
+							"response": []
+						},
+						{
+							"name": "Create Coupon",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    var jsonData = pm.response.json();",
+											"    pm.collectionVariables.set('coupon_id', jsonData.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"discount_value\": 100,\n    \"coupon_start\": \"2025-01-01T00:00:00Z\",\n    \"coupon_end\": \"2025-12-31T23:59:59Z\",\n    \"available_use_times\": 100,\n    \"min_order_value\": 500,\n    \"is_wheel_coupon\": false\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/coupons/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"coupons",
+										""
+									]
+								},
+								"description": "Create a new coupon"
+							},
+							"response": []
+						},
+						{
+							"name": "Update Coupon",
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"discount_value\": 150,\n    \"available_use_times\": 50\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/coupons/{{coupon_id}}/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"coupons",
+										"{{coupon_id}}",
+										""
+									]
+								},
+								"description": "Update a coupon"
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Coupon",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/coupons/{{coupon_id}}/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"coupons",
+										"{{coupon_id}}",
+										""
+									]
+								},
+								"description": "Delete a coupon"
+							},
+							"response": []
+						}
+					],
+					"description": "Coupon management"
+				},
+				{
+					"name": "Orders Management",
+					"item": [
+						{
+							"name": "List Orders (Admin)",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/pills/?search=&ordering=-date_added",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"pills",
+										""
+									],
+									"query": [
+										{
+											"key": "search",
+											"value": ""
+										},
+										{
+											"key": "ordering",
+											"value": "-date_added"
+										}
+									]
+								},
+								"description": "List all orders for admin"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Order Details (Admin)",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/pills/{{pill_id}}/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"pills",
+										"{{pill_id}}",
+										""
+									]
+								},
+								"description": "Get detailed information about an order"
+							},
+							"response": []
+						},
+						{
+							"name": "Update Order Status",
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"status\": \"p\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/pills/{{pill_id}}/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"pills",
+										"{{pill_id}}",
+										""
+									]
+								},
+								"description": "Update order status (i=initiated, w=waiting, p=paid, d=done)"
+							},
+							"response": []
+						}
+					],
+					"description": "Order management for admins"
+				},
+				{
+					"name": "Ratings Management",
+					"item": [
+						{
+							"name": "List Ratings (Admin)",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/ratings/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"ratings",
+										""
+									]
+								},
+								"description": "List all ratings"
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Rating",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/ratings/1/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"ratings",
+										"1",
+										""
+									]
+								},
+								"description": "Delete a rating (admin only)"
+							},
+							"response": []
+						}
+					],
+					"description": "Rating management for admins"
+				}
+			]
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{access_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string"
+		},
+		{
+			"key": "access_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "refresh_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "username",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "user_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "pill_item_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "pill_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "pill_number",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "loved_product_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "category_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "product_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "discount_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "coupon_id",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

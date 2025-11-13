@@ -249,6 +249,9 @@ AWS_S3_VERIFY = True
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 """
 
+
+ACTIVE_SITE_NAME = os.getenv('ACTIVE_SITE_NAME', 'easytech')
+
 # ^ < ==========================Payment CONFIG========================== >
 
 
