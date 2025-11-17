@@ -7,7 +7,6 @@ from django.db.models import Count, Sum, F
 logger = logging.getLogger(__name__)
 from django.utils import timezone
 from django.db.models import Sum, F, Count, Q, Case, When, IntegerField
-from django.db import transaction
 from rest_framework import generics, status
 from rest_framework.exceptions import ValidationError
 from rest_framework import filters as rest_filters
@@ -239,113 +238,6 @@ class TeacherProductsView(APIView):
         return serializer.data
 
 
-class UserCartView(generics.ListAPIView):
-    serializer_class = UserCartSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        return PillItem.objects.filter(user=self.request.user, status__isnull=True).order_by('-date_added')
-
-
-
-
-class PillItemCreateView(generics.CreateAPIView):
-    serializer_class = PillItemCreateUpdateSerializer
-    permission_classes = [IsAuthenticated]
-
-    def perform_create(self, serializer):
-        user = self.request.user
-        product = serializer.validated_data['product']
-        size = serializer.validated_data.get('size')
-        color = serializer.validated_data.get('color')
-        quantity = serializer.validated_data['quantity']
-
-        with transaction.atomic():
-            # Get cart settings
-            from products.models import CartSettings
-            cart_settings = CartSettings.get_settings()
-            max_items = cart_settings.max_items_in_cart
-
-            # Check for existing item with the exact same attributes
-            existing_item = PillItem.objects.filter(
-                user=user,
-                product=product,
-                size=size,
-                color=color,
-                status__isnull=True
-            ).first()
-
-            if existing_item:
-                # If same exact item exists, combine quantities
-                combined_quantity = existing_item.quantity + quantity
-                try:
-                    temp_data = {
-                        'product': product.id,
-                        'size': size,
-                        'color': color.id if color else None,
-                        'quantity': combined_quantity
-                    }
-                    # Create a new serializer instance for validation
-                    validation_serializer = self.get_serializer(data=temp_data)
-                    validation_serializer.is_valid(raise_exception=True)
-                except serializers.ValidationError as e:
-                    raise serializers.ValidationError(e.detail)
-
-                existing_item.quantity = combined_quantity
-                existing_item.save()
-                serializer.instance = existing_item
-            else:
-                # Check cart item limit for new items
-                current_cart_count = PillItem.objects.filter(
-                    user=user,
-                    status__isnull=True
-                ).count()
-                
-                if current_cart_count >= max_items:
-                    raise serializers.ValidationError({
-                        'non_field_errors': [f'لا يمكنك اضافة اكثر من {max_items} منتجات فى السلة , انشئ فاتورة اولا او امسح بعض المنتجات']
-                    })
-                
-                # Create new item
-                serializer.save(user=user, status=None)
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-
-
-
-class PillItemUpdateView(generics.UpdateAPIView):
-    serializer_class = PillItemCreateUpdateSerializer
-    permission_classes = [IsAuthenticated]
-    queryset = PillItem.objects.all()
-
-    def get_queryset(self):
-        return super().get_queryset().filter(user=self.request.user)
-
-    def patch(self, request, *args, **kwargs):
-        with transaction.atomic():
-            instance = self.get_object()
-            if 'quantity' in request.data and int(request.data.get('quantity', 1)) <= 0:
-                instance.delete()
-                return Response(status=status.HTTP_204_NO_CONTENT)
-            data = request.data.copy()
-            allowed_fields = ['quantity']
-            data = {k: v for k, v in data.items() if k in allowed_fields}
-            serializer = self.get_serializer(instance, data=data, partial=True)
-            serializer.is_valid(raise_exception=True)
-            self.perform_update(serializer)
-            return Response(serializer.data)
-
-class PillItemDeleteView(generics.DestroyAPIView):
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        return PillItem.objects.filter(user=self.request.user, status__isnull=True)
-
 class PillItemPermissionMixin:
     def has_object_permission(self, request, view, obj):
         return obj.user == request.user
@@ -356,18 +248,28 @@ class PillCreateView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):
-        pill = serializer.save(user=self.request.user, status='i')
-        pill.apply_gift_discount()  # Explicit call (also handled in save)
+        serializer.save(user=self.request.user, status='i')
 
-class PillCouponApplyView(generics.UpdateAPIView):
-    queryset = Pill.objects.all()
+class PillCouponApplyView(generics.GenericAPIView):
     serializer_class = PillCouponApplySerializer
     lookup_field = 'id'
     permission_classes = [IsAuthenticated]
 
-    def perform_update(self, serializer):
-        pill = serializer.save()
-        pill.apply_gift_discount()  # Re-apply gift after coupon update
+    def get_queryset(self):
+        return Pill.objects.filter(user=self.request.user)
+
+    def post(self, request, *args, **kwargs):
+        return self._apply_coupon(request, *args, **kwargs)
+
+    def patch(self, request, *args, **kwargs):
+        return self._apply_coupon(request, *args, **kwargs)
+
+    def _apply_coupon(self, request, *args, **kwargs):
+        pill = self.get_object()
+        serializer = self.get_serializer(pill, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 
@@ -426,23 +328,18 @@ class ProductsWithActiveDiscountAPIView(APIView):
 
 class LovedProductListCreateView(generics.ListCreateAPIView):
     serializer_class = LovedProductSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        if self.request.user.is_authenticated:
-            return LovedProduct.objects.filter(user=self.request.user)
-        return LovedProduct.objects.none()
+        return LovedProduct.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
-        if self.request.user.is_authenticated:
-            serializer.save(user=self.request.user)
-        else:
-            serializer.save()
+        serializer.save()
 
 class LovedProductRetrieveDestroyView(generics.RetrieveDestroyAPIView):
     queryset = LovedProduct.objects.all()
     serializer_class = LovedProductSerializer
-    permission_classes = [IsOwnerOrReadOnly]
+    permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
 
 class NewArrivalsView(generics.ListAPIView):
     serializer_class = ProductSerializer
@@ -687,7 +584,7 @@ class RemovePillItemView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class LovedProductListCreateView(generics.ListCreateAPIView):
+class AdminLovedProductListCreateView(generics.ListCreateAPIView):
     queryset = LovedProduct.objects.select_related(
         'user', 'product'
     ).prefetch_related('product__images')
@@ -701,7 +598,7 @@ class LovedProductListCreateView(generics.ListCreateAPIView):
     ordering_fields = ['created_at']
     ordering = ['-created_at']
 
-class LovedProductRetrieveDestroyView(generics.RetrieveDestroyAPIView):
+class AdminLovedProductRetrieveDestroyView(generics.RetrieveDestroyAPIView):
     queryset = LovedProduct.objects.select_related('user', 'product')
     serializer_class = AdminLovedProductSerializer
     lookup_field = 'pk'
@@ -919,8 +816,7 @@ class PillListCreateView(generics.ListCreateAPIView):
         # Optimize queryset with select_related, prefetch_related, and annotations
         queryset = Pill.objects.select_related(
             'user',
-            'coupon',
-            'gift_discount'
+            'coupon'
         ).prefetch_related(
             Prefetch(
                 'items',

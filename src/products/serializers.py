@@ -3,7 +3,7 @@ from rest_framework.exceptions import ValidationError
 from collections import defaultdict
 from urllib.parse import urljoin
 from django.utils import timezone
-from django.db.models import Sum
+from django.db.models import Sum, F
 from django.db import transaction
 from accounts.models import User
 from .models import (
@@ -326,13 +326,8 @@ class PillItemSerializer(serializers.ModelSerializer):
         fields = ['id', 'product', 'status', 'date_added']
 
 
-class PillItemCreateSerializer(serializers.ModelSerializer):
-    product = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all())
-    status = serializers.CharField(read_only=True)
-
-    class Meta:
-        model = PillItem
-        fields = ['id', 'product', 'status']
+class PillItemInputSerializer(serializers.Serializer):
+    product = serializers.PrimaryKeyRelatedField(queryset=Product.objects.filter(is_available=True))
 
 
 class AdminPillItemSerializer(PillItemCreateUpdateSerializer):
@@ -455,64 +450,94 @@ class AdminLovedProductSerializer(serializers.ModelSerializer):
 
 
 class PillCreateSerializer(serializers.ModelSerializer):
-    items = PillItemCreateSerializer(many=True, required=False)
+    items = PillItemInputSerializer(many=True, write_only=True)
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
     user_name = serializers.SerializerMethodField()
     user_username = serializers.SerializerMethodField()
     user_phone = serializers.SerializerMethodField()
     user_parent_phone = serializers.SerializerMethodField()
-    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    _items_details = PillItemSerializer(source='items', many=True, read_only=True)
 
     class Meta:
         model = Pill
-        fields = ['id', 'user', 'user_name', 'user_username','user_phone', 'user_parent_phone','items', 'status', 'date_added', 'paid']
-        read_only_fields = ['id', 'status', 'date_added', 'paid']
+        fields = [
+            'id',
+            'user',
+            'user_name',
+            'user_username',
+            'user_phone',
+            'user_parent_phone',
+            'items',
+            '_items_details',
+            'status',
+            'date_added',
+        ]
+        read_only_fields = [
+            'id',
+            'user_name',
+            'user_username',
+            'user_phone',
+            'user_parent_phone',
+            '_items_details',
+            'status',
+            'date_added',
+        ]
+
     def get_user_name(self, obj):
         return obj.user.name
 
     def get_user_username(self, obj):
         return obj.user.username
+
     def get_user_phone(self, obj):
         return obj.user.phone if obj.user else None
+
     def get_user_parent_phone(self, obj):
         return obj.user.parent_phone if obj.user else None
 
+    def validate(self, attrs):
+        items = attrs.get('items', [])
+        if not items:
+            raise ValidationError({'items': ['At least one item is required']})
+
+        product_ids = [item['product'].id for item in items]
+        duplicates = {pid for pid in product_ids if product_ids.count(pid) > 1}
+        if duplicates:
+            raise ValidationError({'items': ['Duplicate products are not allowed in the same pill']})
+
+        return attrs
+
     def create(self, validated_data):
+        items_data = validated_data.pop('items', [])
         user = validated_data['user']
-        items_data = validated_data.pop('items', None)
-        
+        status_value = validated_data.get('status', Pill._meta.get_field('status').default)
+
         with transaction.atomic():
-            # Create the pill first
             pill = Pill.objects.create(**validated_data)
-            
-            if items_data:
-                # Create new items specifically for this pill
-                pill_items = []
-                for item_data in items_data:
-                    item = PillItem.objects.create(
-                        user=user,
-                        product=item_data['product'],
-                        quantity=item_data['quantity'],
-                        size=item_data.get('size'),
-                        color=item_data.get('color'),
-                        status=pill.status,
-                        pill=pill  # Link directly to the pill
-                    )
-                    pill_items.append(item)
-                pill.items.set(pill_items)
-            else:
-                # Move cart items (status=None) to this pill
-                cart_items = PillItem.objects.filter(user=user, status__isnull=True)
-                if not cart_items.exists():
-                    raise ValidationError("No items provided in request and no items in cart to create a pill.")
-                
-                # Update cart items to belong to this pill
-                for item in cart_items:
-                    item.status = pill.status
-                    item.pill = pill
-                    item.save()
-                pill.items.set(cart_items)
-            
-            return pill
+
+            pill_items = []
+            for item_data in items_data:
+                product = item_data['product']
+
+                if not product.is_available:
+                    raise ValidationError({'items': [f'Product "{product.name}" is not available for purchase']})
+
+                pill_item = PillItem.objects.create(
+                    user=user,
+                    product=product,
+                    status=status_value,
+                    pill=pill,
+                )
+                pill_items.append(pill_item)
+
+            pill.items.set(pill_items)
+
+        return pill
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation['items'] = representation.pop('_items_details', [])
+        return representation
 
 class CouponDiscountSerializer(serializers.ModelSerializer):
     is_active = serializers.SerializerMethodField()
@@ -520,7 +545,11 @@ class CouponDiscountSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CouponDiscount
-        fields = ['id', 'coupon', 'discount_value', 'coupon_start', 'coupon_end', 'available_use_times', 'is_wheel_coupon', 'user', 'min_order_value', 'is_active', 'is_available']
+        fields = [
+            'id', 'coupon', 'discount_value', 'coupon_start', 'coupon_end',
+            'available_use_times', 'user', 'min_order_value', 'is_active',
+            'is_available'
+        ]
 
     def get_is_active(self, obj):
         now = timezone.now()
@@ -583,10 +612,10 @@ class PillDetailSerializer(serializers.ModelSerializer):
         return None
     
     def get_payment_url(self, obj):
-        return obj.payment_url
+        return getattr(obj, 'payment_url', None)
     
     def get_payment_status(self, obj):
-        return obj.payment_status
+        return getattr(obj, 'payment_status', None)
 
 
 class PillSerializer(serializers.ModelSerializer):
@@ -652,10 +681,10 @@ class PillSerializer(serializers.ModelSerializer):
         return None
     
     def get_payment_url(self, obj):
-        return obj.payment_url
+        return getattr(obj, 'payment_url', None)
     
     def get_payment_status(self, obj):
-        return obj.payment_status
+        return getattr(obj, 'payment_status', None)
 
 
 class DiscountSerializer(serializers.ModelSerializer):
@@ -698,7 +727,30 @@ class LovedProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = LovedProduct
         fields = ['id', 'product', 'product_id', 'created_at']
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'product', 'created_at']
+        validators = []
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+
+        if not user or not user.is_authenticated:
+            raise serializers.ValidationError({'detail': 'Authentication credentials were not provided.'})
+
+        product = attrs['product']
+        if LovedProduct.objects.filter(user=user, product=product).exists():
+            raise serializers.ValidationError({'product_id': 'This product is already in your loved list.'})
+
+        return attrs
+
+    def create(self, validated_data):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+
+        if not user or not user.is_authenticated:
+            raise serializers.ValidationError({'detail': 'Authentication credentials were not provided.'})
+
+        return LovedProduct.objects.create(user=user, **validated_data)
 
 
 class AdminLovedProductSerializer(LovedProductSerializer):
@@ -710,6 +762,7 @@ class AdminLovedProductSerializer(LovedProductSerializer):
 
     class Meta(LovedProductSerializer.Meta):
         fields = LovedProductSerializer.Meta.fields + ['user', 'user_details']
+        validators = []
 
     def get_user_details(self, obj):
         if not obj.user:
@@ -720,44 +773,134 @@ class AdminLovedProductSerializer(LovedProductSerializer):
             'email': obj.user.email
         }
 
+    def validate(self, attrs):
+        user = attrs.get('user')
+        if not user:
+            request_user = getattr(self.context.get('request'), 'user', None)
+            if request_user and request_user.is_staff:
+                user = request_user
+            else:
+                raise serializers.ValidationError({'user': 'User must be specified.'})
 
-class PillCreateSerializer(serializers.ModelSerializer):
-    items = PillItemSerializer(many=True, read_only=True)
-    coupon = CouponDiscountSerializer(read_only=True)
-    user = serializers.PrimaryKeyRelatedField(read_only=True)
+        product = attrs['product']
+        if LovedProduct.objects.filter(user=user, product=product).exists():
+            raise serializers.ValidationError({'product_id': 'This product is already in the loved list for this user.'})
 
-    class Meta:
-        model = Pill
-        fields = ['id', 'pill_number', 'user', 'items', 'status', 'coupon', 'date_added', 'payment_gateway']
-        read_only_fields = ['id', 'pill_number', 'user', 'items', 'status', 'coupon', 'date_added']
+        attrs['user'] = user
+        return attrs
 
     def create(self, validated_data):
-        request = self.context.get('request')
-        user = request.user if request else None
-        pill = Pill.objects.create(user=user, **validated_data)
-        return pill
+        user = validated_data.pop('user')
+        return LovedProduct.objects.create(user=user, **validated_data)
 
 
 class PillCouponApplySerializer(serializers.ModelSerializer):
     coupon = CouponDiscountSerializer(read_only=True)
+    coupon_code = serializers.CharField(write_only=True)
+    final_price = serializers.SerializerMethodField()
 
     class Meta:
         model = Pill
-        fields = ['id', 'coupon']
+        fields = ['id', 'coupon_code', 'coupon', 'coupon_discount', 'final_price']
+        read_only_fields = ['id', 'coupon', 'coupon_discount', 'final_price']
 
-    def validate_coupon(self, value):
-        if not value:
-            raise serializers.ValidationError("A coupon must be provided")
-        if not value.is_active:
-            raise serializers.ValidationError("The coupon is not currently active")
-        if value.available_use_times <= 0:
-            raise serializers.ValidationError("This coupon has been fully used")
-        return value
+    def to_internal_value(self, data):
+        if isinstance(data, dict) and 'coupon' in data and 'coupon_code' not in data:
+            data = data.copy()
+            data['coupon_code'] = data.pop('coupon')
+        return super().to_internal_value(data)
 
+    def validate(self, attrs):
+        coupon_code = attrs.get('coupon_code')
+        if not coupon_code:
+            raise serializers.ValidationError({'coupon_code': 'A coupon code must be provided.'})
 
-class CouponCodeField(serializers.Field):
-    def to_representation(self, value):
-        return value.coupon
+        coupon_code = coupon_code.strip()
+        pill = self.instance
+
+        try:
+            coupon = CouponDiscount.objects.get(coupon__iexact=coupon_code)
+        except CouponDiscount.DoesNotExist:
+            raise serializers.ValidationError({'coupon_code': 'Coupon does not exist.'})
+
+        now = timezone.now()
+        if coupon.coupon_start and coupon.coupon_start > now:
+            raise serializers.ValidationError({'coupon_code': 'Coupon is not yet active.'})
+        if coupon.coupon_end and coupon.coupon_end < now:
+            raise serializers.ValidationError({'coupon_code': 'Coupon has expired.'})
+        if coupon.available_use_times <= 0 and pill.coupon_id != coupon.id:
+            raise serializers.ValidationError({'coupon_code': 'This coupon has been fully used.'})
+        if coupon.user_id and pill.user_id != coupon.user_id:
+            raise serializers.ValidationError({'coupon_code': 'Coupon is not valid for this user.'})
+        if not coupon.discount_value or coupon.discount_value <= 0:
+            raise serializers.ValidationError({'coupon_code': 'Coupon does not have a valid discount value.'})
+
+        subtotal = self._calculate_subtotal(pill)
+        if subtotal <= 0:
+            raise serializers.ValidationError({'coupon_code': 'Order total must be greater than zero to apply coupon.'})
+        if coupon.min_order_value and subtotal < coupon.min_order_value:
+            raise serializers.ValidationError({'coupon_code': f'Minimum order value for this coupon is {coupon.min_order_value}.'})
+
+        discount_amount = subtotal * (coupon.discount_value / 100)
+        discount_amount = min(subtotal, discount_amount)
+
+        self._coupon = coupon
+        self._discount_amount = round(float(discount_amount), 2)
+        return attrs
+
+    def update(self, instance, validated_data):
+        validated_data.pop('coupon_code', None)
+        coupon = getattr(self, '_coupon', None)
+        discount_amount = getattr(self, '_discount_amount', None)
+
+        if coupon is None or discount_amount is None:
+            raise serializers.ValidationError({'coupon_code': 'Coupon validation failed.'})
+
+        with transaction.atomic():
+            try:
+                coupon_for_update = CouponDiscount.objects.select_for_update().get(pk=coupon.pk)
+            except CouponDiscount.DoesNotExist:  # pragma: no cover - defensive
+                raise serializers.ValidationError({'coupon_code': 'Coupon does not exist.'})
+
+            if coupon_for_update.available_use_times <= 0 and instance.coupon_id != coupon_for_update.pk:
+                raise serializers.ValidationError({'coupon_code': 'This coupon has been fully used.'})
+
+            if instance.coupon_id and instance.coupon_id != coupon_for_update.pk:
+                raise serializers.ValidationError({'coupon_code': 'A different coupon has already been applied to this order.'})
+
+            is_new_coupon = instance.coupon_id != coupon_for_update.pk
+
+            if is_new_coupon:
+                updated = CouponDiscount.objects.filter(
+                    pk=coupon_for_update.pk,
+                    available_use_times__gt=0
+                ).update(available_use_times=F('available_use_times') - 1)
+                if not updated:
+                    raise serializers.ValidationError({'coupon_code': 'This coupon has reached its usage limit.'})
+                instance.coupon = coupon_for_update
+
+            instance.coupon_discount = discount_amount
+            update_fields = ['coupon_discount']
+            if is_new_coupon:
+                update_fields.append('coupon')
+            instance.save(update_fields=update_fields)
+
+        return instance
+
+    def get_final_price(self, obj):
+        return obj.final_price()
+
+    def _calculate_subtotal(self, pill):
+        total = 0.0
+        for item in pill.items.select_related('product').all():
+            product = getattr(item, 'product', None)
+            if not product:
+                continue
+            price = product.discounted_price()
+            if price is None:
+                price = product.price or 0.0
+            total += float(price)
+        return total
 
 
 class UserCartSerializer(serializers.Serializer):

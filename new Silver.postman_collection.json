@@ -1,7 +1,7 @@
 {
 	"info": {
-		"_postman_id": "a1b2c3d4-e5f6-47g8-h9i0-j1k2l3m4n5o6",
-		"name": "Silver Bookstore - Complete API (Accounts + Products)",
+		"_postman_id": "10ef742b-fc13-4e8b-9fbe-e9f8f2507a47",
+		"name": "new Silver",
 		"description": "Complete API collection for Silver Bookstore - Accounts & Products apps with Customer and Dashboard flows",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "33824171"
@@ -54,7 +54,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"username\": \"studentuser1\",\n    \"password\": \"testpass123\",\n    \"name\": \"Student User\",\n    \"email\": \"student@example.com\",\n    \"phone\": \"01234567890\",\n    \"user_type\": \"student\",\n    \"year\": \"first-secondary\",\n    \"division\": \"علمى رياضة\",\n    \"government\": \"1\"\n}"
+									"raw": "{\n    \"username\": \"testuser1\",\n    \"password\": \"testpass123\",\n    \"name\": \"Test User\",\n    \"email\": \"testuser@example.com\",\n    \"phone\": \"01234567890\",\n    \"user_type\": \"student\",\n    \"year\": \"first-secondary\",\n    \"division\": \"علمى رياضة\",\n    \"government\": \"1\"\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/accounts/signup/",
@@ -112,7 +112,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"username\": \"studentuser1\",\n    \"password\": \"testpass123\"\n}"
+									"raw": "{\n    \"username\": \"testuser1\",\n    \"password\": \"testpass123\"\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/accounts/signin/",
@@ -180,13 +180,119 @@
 					"description": "Authentication related endpoints"
 				},
 				{
+					"name": "Password Management",
+					"item": [
+						{
+							"name": "Request Password Reset (OTP)",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"phone\": \"01234567890\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/accounts/password-reset/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"accounts",
+										"password-reset",
+										""
+									]
+								},
+								"description": "Request password reset OTP via WhatsApp"
+							},
+							"response": []
+						},
+						{
+							"name": "Confirm Password Reset",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"phone\": \"01234567890\",\n    \"otp\": \"123456\",\n    \"new_password\": \"newpassword123\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/accounts/password-reset/confirm/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"accounts",
+										"password-reset",
+										"confirm",
+										""
+									]
+								},
+								"description": "Reset password using OTP"
+							},
+							"response": []
+						},
+						{
+							"name": "Change Password (Authenticated)",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"old_password\": \"currentpassword123\",\n    \"new_password\": \"newpassword123\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/accounts/change-password/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"accounts",
+										"change-password",
+										""
+									]
+								},
+								"description": "Change password for authenticated user"
+							},
+							"response": []
+						}
+					],
+					"description": "Password reset and change endpoints"
+				},
+				{
 					"name": "User Profile",
 					"item": [
 						{
 							"name": "Get User Data",
 							"request": {
 								"method": "GET",
-								"header": [],
+								"header": [
+									{
+										"key": "auth",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYyODYyMTcwLCJpYXQiOjE3NjI2MDI5NzAsImp0aSI6IjYzOWU5NGY3YzZkMDQzMjliNDI3MTRhZTQ5ZTQ2ZDBmIiwidXNlcl9pZCI6IjMifQ.743PYJcDH1lJFpS05o1e3EEWBJdkmX_AIxNT8LwUyU0",
+										"type": "text"
+									}
+								],
 								"url": {
 									"raw": "{{base_url}}/accounts/get-user-data/",
 									"host": [
@@ -210,11 +316,16 @@
 									{
 										"key": "Content-Type",
 										"value": "application/json"
+									},
+									{
+										"key": "auth",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYyODYyMTcwLCJpYXQiOjE3NjI2MDI5NzAsImp0aSI6IjYzOWU5NGY3YzZkMDQzMjliNDI3MTRhZTQ5ZTQ2ZDBmIiwidXNlcl9pZCI6IjMifQ.743PYJcDH1lJFpS05o1e3EEWBJdkmX_AIxNT8LwUyU0",
+										"type": "text"
 									}
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"name\": \"Updated Name\",\n    \"phone\": \"01234567890\",\n    \"email\": \"updated@example.com\",\n    \"government\": \"2\",\n    \"year\": \"second-secondary\"\n}"
+									"raw": "{\n    \"name\": \"Updated Name\",\n    \"phone\": \"01234567890\",\n    \"phone2\": \"01987654321\",\n    \"email\": \"updated@example.com\",\n    \"government\": \"2\",\n    \"year\": \"second-secondary\",\n    \"division\": \"علمى علوم\"\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/accounts/update-user-data/",
@@ -233,6 +344,338 @@
 						}
 					],
 					"description": "User profile management endpoints"
+				},
+				{
+					"name": "Admin - User Management",
+					"item": [
+						{
+							"name": "Create Admin User",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"username\": \"admin\",\n    \"password\": \"adminpass123\",\n    \"name\": \"Admin User\",\n    \"email\": \"admin@silverbookstore.com\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/accounts/dashboard/create-admin-user/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"accounts",
+										"dashboard",
+										"create-admin-user",
+										""
+									]
+								},
+								"description": "Create a new admin user with staff and superuser privileges"
+							},
+							"response": []
+						},
+						{
+							"name": "List All Users",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/accounts/dashboard/users/?search=&ordering=-created_at&is_staff=&year=&government=",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"accounts",
+										"dashboard",
+										"users",
+										""
+									],
+									"query": [
+										{
+											"key": "search",
+											"value": "",
+											"description": "Search by username, name, email, phone, government"
+										},
+										{
+											"key": "ordering",
+											"value": "-created_at",
+											"description": "Order by: created_at, cart_items_count, loved_count"
+										},
+										{
+											"key": "is_staff",
+											"value": "",
+											"description": "Filter by staff status (true/false)"
+										},
+										{
+											"key": "year",
+											"value": "",
+											"description": "Filter by year (first-secondary, second-secondary, third-secondary)"
+										},
+										{
+											"key": "government",
+											"value": "",
+											"description": "Filter by government (1-27)"
+										}
+									]
+								},
+								"description": "List all users with filtering, searching, and ordering capabilities"
+							},
+							"response": []
+						},
+						{
+							"name": "Get User Details",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/accounts/dashboard/users/{{user_id}}/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"accounts",
+										"dashboard",
+										"users",
+										"{{user_id}}",
+										""
+									]
+								},
+								"description": "Get detailed information about a specific user"
+							},
+							"response": []
+						},
+						{
+							"name": "Create User",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"username\": \"newuser\",\n    \"password\": \"newuserpass123\",\n    \"name\": \"New User\",\n    \"email\": \"newuser@example.com\",\n    \"phone\": \"01122334455\",\n    \"user_type\": \"student\",\n    \"year\": \"first-secondary\",\n    \"division\": \"علمى رياضة\",\n    \"government\": \"1\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/accounts/dashboard/users/create/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"accounts",
+										"dashboard",
+										"users",
+										"create",
+										""
+									]
+								},
+								"description": "Create a new user (admin only)"
+							},
+							"response": []
+						},
+						{
+							"name": "Update User",
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"Updated User Name\",\n    \"email\": \"updatedemail@example.com\",\n    \"phone\": \"01234567890\",\n    \"government\": \"3\",\n    \"year\": \"third-secondary\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/accounts/dashboard/users/update/{{username}}/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"accounts",
+										"dashboard",
+										"users",
+										"update",
+										"{{username}}",
+										""
+									]
+								},
+								"description": "Update user data by username (admin only)"
+							},
+							"response": []
+						},
+						{
+							"name": "Delete User",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/accounts/dashboard/users/delete/{{user_id}}/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"accounts",
+										"dashboard",
+										"users",
+										"delete",
+										"{{user_id}}",
+										""
+									]
+								},
+								"description": "Delete a user by ID (admin only)"
+							},
+							"response": []
+						}
+					],
+					"description": "Admin endpoints for user management"
+				},
+				{
+					"name": "Admin - Profile Images",
+					"item": [
+						{
+							"name": "List Profile Images",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/accounts/dashboard/profile-images/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"accounts",
+										"dashboard",
+										"profile-images",
+										""
+									]
+								},
+								"description": "List all profile images (public access)"
+							},
+							"response": []
+						},
+						{
+							"name": "Upload Profile Image",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "image",
+											"type": "file",
+											"src": []
+										}
+									]
+								},
+								"url": {
+									"raw": "{{base_url}}/accounts/dashboard/profile-images/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"accounts",
+										"dashboard",
+										"profile-images",
+										""
+									]
+								},
+								"description": "Upload a new profile image (admin only)"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Profile Image Details",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/accounts/dashboard/profile-images/1/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"accounts",
+										"dashboard",
+										"profile-images",
+										"1",
+										""
+									]
+								},
+								"description": "Get details of a specific profile image"
+							},
+							"response": []
+						},
+						{
+							"name": "Update Profile Image",
+							"request": {
+								"method": "PATCH",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "image",
+											"type": "file",
+											"src": []
+										}
+									]
+								},
+								"url": {
+									"raw": "{{base_url}}/accounts/dashboard/profile-images/1/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"accounts",
+										"dashboard",
+										"profile-images",
+										"1",
+										""
+									]
+								},
+								"description": "Update a profile image"
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Profile Image",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/accounts/dashboard/profile-images/1/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"accounts",
+										"dashboard",
+										"profile-images",
+										"1",
+										""
+									]
+								},
+								"description": "Delete a profile image"
+							},
+							"response": []
+						}
+					],
+					"description": "Profile image management endpoints"
 				}
 			]
 		},
@@ -344,7 +787,7 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "{{base_url}}/products/products/?category=1&subject=1&teacher=1&year=first-secondary&search=mathematics",
+									"raw": "{{base_url}}/products/products/",
 									"host": [
 										"{{base_url}}"
 									],
@@ -484,129 +927,7 @@
 					],
 					"description": "Browse and search products"
 				},
-				{
-					"name": "Shopping Cart",
-					"item": [
-						{
-							"name": "View Cart",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{base_url}}/products/cart/",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"products",
-										"cart",
-										""
-									]
-								},
-								"description": "Get current user's shopping cart"
-							},
-							"response": []
-						},
-						{
-							"name": "Add Item to Cart",
-							"event": [
-								{
-									"listen": "test",
-									"script": {
-										"exec": [
-											"if (pm.response.code === 201 || pm.response.code === 200) {",
-											"    var jsonData = pm.response.json();",
-											"    pm.collectionVariables.set('pill_item_id', jsonData.id);",
-											"}"
-										],
-										"type": "text/javascript"
-									}
-								}
-							],
-							"request": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Content-Type",
-										"value": "application/json"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"product\": 1,\n    \"quantity\": 1\n}"
-								},
-								"url": {
-									"raw": "{{base_url}}/products/cart/add/",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"products",
-										"cart",
-										"add",
-										""
-									]
-								},
-								"description": "Add a product to cart"
-							},
-							"response": []
-						},
-						{
-							"name": "Update Cart Item",
-							"request": {
-								"method": "PATCH",
-								"header": [
-									{
-										"key": "Content-Type",
-										"value": "application/json"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"quantity\": 2\n}"
-								},
-								"url": {
-									"raw": "{{base_url}}/products/cart/update/{{pill_item_id}}/",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"products",
-										"cart",
-										"update",
-										"{{pill_item_id}}",
-										""
-									]
-								},
-								"description": "Update quantity of an item in cart"
-							},
-							"response": []
-						},
-						{
-							"name": "Remove Item from Cart",
-							"request": {
-								"method": "DELETE",
-								"header": [],
-								"url": {
-									"raw": "{{base_url}}/products/cart/delete/{{pill_item_id}}/",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"products",
-										"cart",
-										"delete",
-										"{{pill_item_id}}",
-										""
-									]
-								},
-								"description": "Remove an item from cart"
-							},
-							"response": []
-						}
-					],
-					"description": "Shopping cart operations"
-				},
+
 				{
 					"name": "Checkout & Orders",
 					"item": [
@@ -620,7 +941,9 @@
 											"if (pm.response.code === 201) {",
 											"    var jsonData = pm.response.json();",
 											"    pm.collectionVariables.set('pill_id', jsonData.id);",
-											"    pm.collectionVariables.set('pill_number', jsonData.pill_number);",
+											"    if (jsonData.pill_number) {",
+											"        pm.collectionVariables.set('pill_number', jsonData.pill_number);",
+											"    }",
 											"}"
 										],
 										"type": "text/javascript"
@@ -637,7 +960,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{}"
+									"raw": "{\n    \"items\": [\n        { \"product\": 1 },\n        { \"product\": 2 }\n    ]\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/products/pills/init/",
@@ -651,7 +974,7 @@
 										""
 									]
 								},
-								"description": "Create an order from cart items"
+								"description": "Create an order from front-end managed cart items. Provide the selected product IDs in the items array; duplicates are not allowed."
 							},
 							"response": []
 						},
@@ -993,7 +1316,8 @@
 										},
 										{
 											"key": "image",
-											"type": "file"
+											"type": "file",
+											"src": []
 										}
 									]
 								},
@@ -1029,7 +1353,8 @@
 										},
 										{
 											"key": "image",
-											"type": "file"
+											"type": "file",
+											"src": []
 										}
 									]
 								},
@@ -1262,7 +1587,8 @@
 										},
 										{
 											"key": "image",
-											"type": "file"
+											"type": "file",
+											"src": []
 										}
 									]
 								},
@@ -1298,7 +1624,8 @@
 										},
 										{
 											"key": "image",
-											"type": "file"
+											"type": "file",
+											"src": []
 										}
 									]
 								},
@@ -1390,6 +1717,15 @@
 											"    pm.collectionVariables.set('product_id', jsonData.id);",
 											"}"
 										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [],
 										"type": "text/javascript"
 									}
 								}
@@ -1447,11 +1783,13 @@
 										},
 										{
 											"key": "pdf_file",
-											"type": "file"
+											"type": "file",
+											"src": "/C:/Users/ahmed/Downloads/6_2021_02_17!02_08_00_AM.pdf"
 										},
 										{
 											"key": "base_image",
-											"type": "file"
+											"type": "file",
+											"src": "/C:/Users/ahmed/Downloads/ChatGPT Image Oct 15, 2025, 06_00_47 PM.png"
 										}
 									]
 								},
@@ -1505,11 +1843,14 @@
 										},
 										{
 											"key": "pdf_file",
-											"type": "file"
+											"value": "",
+											"type": "file",
+											"disabled": true
 										},
 										{
 											"key": "base_image",
-											"type": "file"
+											"type": "file",
+											"src": "/C:/Users/ahmed/Downloads/kim_hero3.png"
 										}
 									]
 								},
@@ -1591,6 +1932,15 @@
 											"    pm.collectionVariables.set('product_image_id', jsonData.id);",
 											"}"
 										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [],
 										"type": "text/javascript"
 									}
 								}
@@ -1608,7 +1958,8 @@
 										},
 										{
 											"key": "image",
-											"type": "file"
+											"type": "file",
+											"src": "/C:/Users/ahmed/Downloads/kim_hero2.png"
 										}
 									]
 								},
@@ -1638,7 +1989,8 @@
 									"formdata": [
 										{
 											"key": "image",
-											"type": "file"
+											"type": "file",
+											"src": []
 										}
 									]
 								},
@@ -1737,7 +2089,8 @@
 										},
 										{
 											"key": "image",
-											"type": "file"
+											"type": "file",
+											"src": []
 										}
 									]
 								},
@@ -1767,7 +2120,8 @@
 									"formdata": [
 										{
 											"key": "image",
-											"type": "file"
+											"type": "file",
+											"src": []
 										}
 									]
 								},
@@ -1866,7 +2220,8 @@
 										},
 										{
 											"key": "image",
-											"type": "file"
+											"type": "file",
+											"src": []
 										}
 									]
 								},
@@ -1896,7 +2251,8 @@
 									"formdata": [
 										{
 											"key": "image",
-											"type": "file"
+											"type": "file",
+											"src": []
 										}
 									]
 								},
@@ -2407,6 +2763,10 @@
 			"key": "coupon_id",
 			"value": "",
 			"type": "string"
+		},
+		{
+			"key": "product_image_id",
+			"value": ""
 		}
 	]
 }

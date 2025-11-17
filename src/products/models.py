@@ -1,9 +1,8 @@
 import random
 import string
-from django.db import models, transaction
+from django.db import models
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
-from django.db.models import Sum
 from products.utils import send_whatsapp_message
 from accounts.models import YEAR_CHOICES, User
 from core import settings
@@ -415,11 +414,23 @@ class Pill(models.Model):
                     item.price_at_sale = item.product.discounted_price()
                 item.save()
 
+    def items_subtotal(self):
+        """Return the subtotal for the pill using current discounted product prices."""
+        total = 0.0
+        for item in self.items.select_related('product').all():
+            product = getattr(item, 'product', None)
+            if not product:
+                continue
+            price = product.discounted_price()
+            if price is None:
+                price = product.price or 0.0
+            total += float(price)
+        return total
+
     def final_price(self):
-        """Calculate final price for the pill"""
-        base_price = self.price_without_coupons_or_gifts()
-        coupon_discount = self.calculate_coupon_discount()
-        return max(0, base_price - coupon_discount)
+        subtotal = self.items_subtotal()
+        discount = float(self.coupon_discount or 0.0)
+        return round(max(0.0, float(subtotal) - discount), 2)
 
     class Meta:
         verbose_name_plural = 'Bills'
@@ -441,7 +452,6 @@ class CouponDiscount(models.Model):
     coupon_start = models.DateTimeField(null=True, blank=True)
     coupon_end = models.DateTimeField(null=True, blank=True)
     available_use_times = models.PositiveIntegerField(default=1)
-    is_wheel_coupon = models.BooleanField(default=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     min_order_value = models.FloatField(null=True, blank=True)
     created_at = models.DateTimeField(default=timezone.now)

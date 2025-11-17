@@ -1360,7 +1360,6 @@ class CouponDiscount(models.Model):
     coupon_start = models.DateTimeField(null=True, blank=True)
     coupon_end = models.DateTimeField(null=True, blank=True)
     available_use_times = models.PositiveIntegerField(default=1)
-    is_wheel_coupon = models.BooleanField(default=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     min_order_value = models.FloatField(null=True, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
