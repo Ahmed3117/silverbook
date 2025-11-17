@@ -233,6 +233,11 @@ CORS_ALLOW_METHODS = [
 WHATSAPP_TOKEN = os.getenv('WHATSAPP_TOKEN')
 WHATSAPP_ID = os.getenv('WHATSAPP_ID')
 
+# ^ < ==========================BEON SMS CONFIG========================== >
+
+BEON_SMS_BASE_URL = os.getenv('BEON_SMS_BASE_URL', 'https://v3.api.beon.chat/api/v3/messages/sms/bulk')
+BEON_SMS_TOKEN = os.getenv('BEON_SMS_TOKEN', 'XCuzhHqoHZXY21F5PdK0NMZDWKy67NoHG4Trscg#5ghFVrKadomBDaa024CV')
+
 # ^ < ==========================AWS CONFIG========================== >
 
 """

@@ -5,7 +5,7 @@ from rest_framework.permissions import AllowAny,IsAuthenticated,IsAdminUser
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.views import APIView
 from django.contrib.auth import authenticate
-from accounts.utils import send_whatsapp_massage
+from services.beon_service import send_beon_sms
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.mail import send_mail
 from django.utils import timezone
@@ -77,16 +77,17 @@ def request_password_reset(request):
             user.otp_created_at = timezone.now()
             user.save()
             
-            # Send OTP via WhatsApp instead of email
-            req_send = send_whatsapp_massage(
-                massage=f'Your PIN code is {otp}',
-                phone_number=f'{phone}'
-            )
-            
-            if req_send:  # Assuming the function returns True on success
-                return Response({'message': 'OTP sent to your phone via WhatsApp'})
+            message = f'Your PIN code is {otp}'
+            sms_response = send_beon_sms(phone_numbers=phone, message=message)
+
+            if sms_response.get('success'):
+                return Response({'message': 'OTP sent to your phone via SMS'})
             else:
-                return Response({'error': 'Failed to send OTP via WhatsApp'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                error_detail = sms_response.get('error') or sms_response.get('detail')
+                return Response(
+                    {'error': 'Failed to send OTP via SMS', 'detail': error_detail},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
         except Exception as e:
             return Response({'error': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
