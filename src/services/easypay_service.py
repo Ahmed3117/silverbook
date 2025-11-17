@@ -7,6 +7,8 @@ from django.core.cache import cache
 from datetime import datetime, timedelta
 from django.utils import timezone
 
+from services.customer_profile import get_customer_profile
+
 logger = logging.getLogger(__name__)
 
 class EasyPayService:
@@ -56,17 +58,11 @@ class EasyPayService:
                 if pill_items_count > 5:
                     logger.info(f"  ... and {pill_items_count - 5} more items")
             
-            # Check if pill has address info
-            if not hasattr(pill, 'pilladdress') or not pill.pilladdress:
-                logger.error(f"Pill {pill.pill_number} has no address information")
-                return {
-                    'success': False,
-                    'error': 'Pill address information is required for EasyPay invoice creation'
-                }
-            
+            profile = get_customer_profile(pill)
+
             # Get customer information
-            customer_name = pill.pilladdress.name or pill.user.name or pill.user.username
-            customer_phone = pill.pilladdress.phone or pill.user.phone
+            customer_name = profile['full_name']
+            customer_phone = profile['phone']
             
             if not customer_phone:
                 logger.error(f"Pill {pill.pill_number} has no customer phone")

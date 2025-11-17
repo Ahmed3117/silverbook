@@ -7,6 +7,8 @@ from django.core.cache import cache
 from datetime import datetime, timedelta
 from django.utils import timezone
 
+from services.customer_profile import get_customer_profile
+
 logger = logging.getLogger(__name__)
 
 class ShakeoutService:
@@ -69,37 +71,15 @@ class ShakeoutService:
                     }
                 }
             
-            # Get pill address
-            pill_address = pill.pilladdress
-            if not pill_address:
-                return {
-                    'success': False,
-                    'error': 'Pill address information is required',
-                    'data': None
-                }
-            
-            # Format phone number for Shake-out (must be in format +201234567890)
-            phone = pill_address.phone
-            if phone and not phone.startswith('+'):
-                # If phone starts with 0, replace with +20
-                if phone.startswith('0'):
-                    formatted_phone = '+2' + phone
-                # If phone starts with 20, add +
-                elif phone.startswith('20'):
-                    formatted_phone = '+' + phone
-                # Otherwise add +20
-                else:
-                    formatted_phone = '+20' + phone
-            else:
-                formatted_phone = phone or '+201234567890'  # Default fallback
-            
+            profile = get_customer_profile(pill)
+
             # Prepare customer data
             customer_data = {
-                "first_name": pill_address.name.split()[0] if pill_address.name else "Customer",
-                "last_name": " ".join(pill_address.name.split()[1:]) if pill_address.name and len(pill_address.name.split()) > 1 else "Name",
-                "email": pill_address.email or f"customer_{pill.id}@bookefay.com",
-                "phone": formatted_phone,
-                "address": f"{pill_address.address or 'Cairo'}, {pill_address.government or 'Egypt'}"
+                "first_name": profile['first_name'],
+                "last_name": profile['last_name'],
+                "email": profile['email'],
+                "phone": profile['international_phone'],
+                "address": f"{profile['address']}"
             }
             
             # Calculate totals

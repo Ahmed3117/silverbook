@@ -83,15 +83,6 @@ class CreatePaymentView(APIView):
                     'status': 'already_paid'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
-            # Check if pill has required data
-            if not hasattr(pill, 'pilladdress'):
-                return Response({
-                    'success': False,
-                    'error': 'Please complete your address information first',
-                    'pill_number': pill.pill_number,
-                    'status': 'missing_address'
-                }, status=status.HTTP_400_BAD_REQUEST)
-            
             # Create payment invoice
             result = fawaterak_service.create_payment_invoice(pill)
             
@@ -393,18 +384,6 @@ class CreateShakeoutInvoiceView(APIView):
                         }
                     }, status=status.HTTP_400_BAD_REQUEST)
             
-            # Check if pill has required data
-            if not hasattr(pill, 'pilladdress'):
-                logger.error(f"Pill {pill_id} missing pilladdress")
-                return Response({
-                    'success': False,
-                    'error': 'Please complete your address information first',
-                    'pill_number': pill.pill_number,
-                    'status': 'missing_address'
-                }, status=status.HTTP_400_BAD_REQUEST)
-            
-            logger.info(f"Pill address found: {pill.pilladdress.name}, phone: {pill.pilladdress.phone}")
-            
             # Check stock availability before creating invoice
             logger.info(f"Checking stock availability for pill {pill_id}")
             availability_check = pill.check_all_items_availability()
@@ -577,18 +556,6 @@ class CreateEasyPayInvoiceView(APIView):
                             'status': 'active'
                         }
                     }, status=status.HTTP_400_BAD_REQUEST)
-            
-            # Check if pill has required data
-            if not hasattr(pill, 'pilladdress'):
-                logger.error(f"Pill {pill_id} missing pilladdress")
-                return Response({
-                    'success': False,
-                    'error': 'Please complete your address information first',
-                    'pill_number': pill.pill_number,
-                    'status': 'missing_address'
-                }, status=status.HTTP_400_BAD_REQUEST)
-            
-            logger.info(f"Pill address found: {pill.pilladdress.name}, phone: {pill.pilladdress.phone}")
             
             # Check stock availability before creating invoice
             logger.info(f"Checking stock availability for pill {pill_id}")
