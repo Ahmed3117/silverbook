@@ -4,6 +4,8 @@ import logging
 from django.conf import settings
 from django.core.cache import cache
 
+from services.customer_profile import get_customer_profile
+
 logger = logging.getLogger(__name__)
 
 class FawaterakPaymentService:
@@ -43,13 +45,10 @@ class FawaterakPaymentService:
             logger.info(f"Creating Fawaterak invoice for pill {pill.pill_number}")
             
             # Validate pill
-            if not hasattr(pill, 'pilladdress'):
-                return {'success': False, 'error': 'No address information'}
-            
             if not pill.items.exists():
                 return {'success': False, 'error': 'No items in pill'}
             
-            address = pill.pilladdress
+            profile = get_customer_profile(pill)
             
             # Prepare cart items
             cart_items = []
@@ -93,13 +92,13 @@ class FawaterakPaymentService:
                 cart_total -= discount_amount
             
             # Prepare customer data
-            customer_names = address.name.split() if address.name else ['Customer', '']
+            customer_names = profile['full_name'].split()
             customer_data = {
-                "first_name": customer_names[0][:50],
-                "last_name": " ".join(customer_names[1:])[:50] if len(customer_names) > 1 else "User",
-                "email": address.email or f"customer+{pill.id}@bookifay.com",
-                "phone": address.phone.replace('+', '').replace('-', '').replace(' ', '') if address.phone else "",
-                "address": address.address[:200] if address.address else "",
+                "first_name": (customer_names[0] if customer_names else profile['first_name'])[:50],
+                "last_name": (" ".join(customer_names[1:]) if len(customer_names) > 1 else profile['last_name'])[:50],
+                "email": profile['email'],
+                "phone": profile['phone'].replace('+', '').replace('-', '').replace(' ', ''),
+                "address": profile['address'][:200],
                 "customer_unique_id": str(pill.user.id)
             }
             

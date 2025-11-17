@@ -432,6 +432,36 @@ class Pill(models.Model):
         discount = float(self.coupon_discount or 0.0)
         return round(max(0.0, float(subtotal) - discount), 2)
 
+    def check_all_items_availability(self):
+        """Digital products are always available, so mark everything as in stock."""
+        total_items = self.items.count()
+        return {
+            'all_available': True,
+            'problem_items': [],
+            'total_items': total_items,
+            'problem_items_count': 0
+        }
+
+    @property
+    def shakeout_payment_url(self):
+        if self.shakeout_data:
+            return self.shakeout_data.get('payment_url') or self.shakeout_data.get('url')
+        return None
+
+    @property
+    def easypay_payment_url(self):
+        if self.easypay_data:
+            return self.easypay_data.get('payment_url')
+        return None
+
+    def is_easypay_invoice_expired(self):
+        """EasyPay invoices don't expire for digital delivery, treat them as always fresh."""
+        return False
+
+    def is_shakeout_invoice_expired(self):
+        """Shakeout invoices are also considered valid unless deleted; default to False."""
+        return False
+
     class Meta:
         verbose_name_plural = 'Bills'
         ordering = ['-date_added']
