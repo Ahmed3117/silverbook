@@ -22,10 +22,6 @@ urlpatterns = [
     path('combined-products/', views.CombinedProductsView.as_view(), name='combined-products'),
     path('special-best-products/', views.SpecialBestProductsView.as_view(), name='special-best-products'),
     path('teacher-profile/<int:teacher_id>/', views.TeacherProductsView.as_view(), name='teacher-products'),
-    path('cart/', views.UserCartView.as_view(), name='user-cart'),
-    path('cart/add/', views.PillItemCreateView.as_view(), name='cart-add'),
-    path('cart/update/<int:pk>/', views.PillItemUpdateView.as_view(), name='cart-update'),
-    path('cart/delete/<int:pk>/', views.PillItemDeleteView.as_view(), name='cart-delete'),
     path('pills/init/', views.PillCreateView.as_view(), name='pill-create'),
     path('pills/<int:id>/apply-coupon/', views.PillCouponApplyView.as_view(), name='pill-coupon-apply'),
     path('pills/<int:id>/', views.PillDetailView.as_view(), name='pill-detail'),
@@ -69,8 +65,8 @@ urlpatterns = [
     path('pills/<int:pill_id>/items/<int:item_id>/remove/', views.RemovePillItemView.as_view(), name='remove-pill-item'),
     
     # LovedItems endpoints
-    path('dashboard/loved-items/', views.LovedProductListCreateView.as_view(), name='lovedproduct-list'),
-    path('dashboard/loved-items/<int:pk>/', views.LovedProductRetrieveDestroyView.as_view(), name='lovedproduct-detail'),
+    path('dashboard/loved-items/', views.AdminLovedProductListCreateView.as_view(), name='lovedproduct-list'),
+    path('dashboard/loved-items/<int:pk>/', views.AdminLovedProductRetrieveDestroyView.as_view(), name='lovedproduct-detail'),
     
     path('dashboard/pills/', views.PillListCreateView.as_view(), name='admin-pill-list-create'),
     path('dashboard/pills/<int:pk>/', views.PillRetrieveUpdateDestroyView.as_view(), name='admin-pill-detail'),

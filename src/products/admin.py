@@ -614,7 +614,7 @@ class DiscountAdmin(admin.ModelAdmin):
 
 @admin.register(CouponDiscount)
 class CouponDiscountAdmin(admin.ModelAdmin):
-    list_display = ('coupon', 'user', 'discount_value', 'available_use_times', 'is_wheel_coupon', 'coupon_start', 'coupon_end')
+    list_display = ('coupon', 'user', 'discount_value', 'available_use_times', 'coupon_start', 'coupon_end')
     search_fields = ('coupon', 'user__username')
     readonly_fields = ('coupon',)
     autocomplete_fields = ['user']
