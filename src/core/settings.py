@@ -261,7 +261,7 @@ ACTIVE_SITE_NAME = os.getenv('ACTIVE_SITE_NAME', 'easytech')
 
 
 # Payment Gateway Configuration
-ACTIVE_PAYMENT_METHOD = os.getenv('ACTIVE_PAYMENT_METHOD', 'shakeout').lower()  # 'shakeout' or 'easypay'
+ACTIVE_PAYMENT_METHOD = os.getenv('ACTIVE_PAYMENT_METHOD', 'easypay').lower()  # 'shakeout' or 'easypay'
 
 # Site URL
 SITE_URL = os.getenv('SITE_URL', 'https://api2.bookefay.com')
