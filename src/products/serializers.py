@@ -10,7 +10,8 @@ from .models import (
     BestProduct, Category, CouponDiscount, Discount, LovedProduct,
     PillItem, ProductDescription,
     SpecialProduct,
-    SubCategory, Product, ProductImage, Rating, Pill, Subject, Teacher
+    SubCategory, Product, ProductImage, Rating, Pill, Subject, Teacher,
+    PurchasedBook
 )
 
 class SubCategorySerializer(serializers.ModelSerializer):
@@ -512,11 +513,36 @@ class PillCreateSerializer(serializers.ModelSerializer):
         user = validated_data['user']
         status_value = validated_data.get('status', Pill._meta.get_field('status').default)
 
+        owned_numbers = set()
+        owned_ids = set()
+        for product_number, product_id in PurchasedBook.objects.filter(user=user).values_list(
+            'product__product_number', 'product_id'
+        ):
+            if product_number:
+                owned_numbers.add(product_number)
+            if product_id:
+                owned_ids.add(product_id)
+
+        filtered_items = []
+        for item_data in items_data:
+            product = item_data['product']
+            product_number = getattr(product, 'product_number', None)
+
+            if product_number and product_number in owned_numbers:
+                continue
+            if not product_number and product.id in owned_ids:
+                continue
+
+            filtered_items.append(item_data)
+
+        if not filtered_items:
+            raise ValidationError({'items': ['All selected products are already owned']})
+
         with transaction.atomic():
             pill = Pill.objects.create(**validated_data)
 
             pill_items = []
-            for item_data in items_data:
+            for item_data in filtered_items:
                 product = item_data['product']
 
                 if not product.is_available:
@@ -792,6 +818,134 @@ class AdminLovedProductSerializer(LovedProductSerializer):
     def create(self, validated_data):
         user = validated_data.pop('user')
         return LovedProduct.objects.create(user=user, **validated_data)
+
+
+class PurchasedBookSerializer(serializers.ModelSerializer):
+    book_id = serializers.IntegerField(source='id', read_only=True)
+    product_id = serializers.IntegerField(source='product.id', read_only=True)
+    pill_id = serializers.IntegerField(source='pill.id', read_only=True)
+    pill_number = serializers.CharField(source='pill.pill_number', read_only=True)
+    product_number = serializers.SerializerMethodField()
+    name = serializers.SerializerMethodField()
+    year = serializers.SerializerMethodField()
+    category_id = serializers.SerializerMethodField()
+    category_name = serializers.SerializerMethodField()
+    subject_id = serializers.SerializerMethodField()
+    subject_name = serializers.SerializerMethodField()
+    teacher_id = serializers.SerializerMethodField()
+    teacher_name = serializers.SerializerMethodField()
+    sub_category_id = serializers.SerializerMethodField()
+    sub_category_name = serializers.SerializerMethodField()
+    main_image = serializers.SerializerMethodField()
+    number_of_ratings = serializers.SerializerMethodField()
+    average_rating = serializers.SerializerMethodField()
+    pdf_file = serializers.SerializerMethodField()
+    page_count = serializers.SerializerMethodField()
+    file_size_mb = serializers.SerializerMethodField()
+    language = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PurchasedBook
+        fields = [
+            'book_id', 'product_id', 'product_number', 'pill_id', 'pill_number',
+            'name', 'year', 'category_id', 'category_name', 'subject_id', 'subject_name',
+            'teacher_id', 'teacher_name', 'sub_category_id', 'sub_category_name',
+            'main_image', 'number_of_ratings', 'average_rating', 'pdf_file',
+            'page_count', 'file_size_mb', 'language'
+        ]
+        read_only_fields = fields
+
+    def _product(self, obj):
+        return getattr(obj, 'product', None)
+
+    def _build_absolute_uri(self, path):
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(path)
+        return path
+
+    def get_product_number(self, obj):
+        product = self._product(obj)
+        return product.product_number if product else None
+
+    def get_name(self, obj):
+        product = self._product(obj)
+        return product.name if product else None
+
+    def get_year(self, obj):
+        product = self._product(obj)
+        return product.year if product else None
+
+    def get_category_id(self, obj):
+        product = self._product(obj)
+        return product.category_id if product else None
+
+    def get_category_name(self, obj):
+        product = self._product(obj)
+        return product.category.name if product and product.category else None
+
+    def get_subject_id(self, obj):
+        product = self._product(obj)
+        return product.subject_id if product else None
+
+    def get_subject_name(self, obj):
+        product = self._product(obj)
+        return product.subject.name if product and product.subject else None
+
+    def get_teacher_id(self, obj):
+        product = self._product(obj)
+        return product.teacher_id if product else None
+
+    def get_teacher_name(self, obj):
+        product = self._product(obj)
+        return product.teacher.name if product and product.teacher else None
+
+    def get_sub_category_id(self, obj):
+        product = self._product(obj)
+        return product.sub_category_id if product else None
+
+    def get_sub_category_name(self, obj):
+        product = self._product(obj)
+        if product and product.sub_category:
+            return product.sub_category.name
+        return None
+
+    def get_main_image(self, obj):
+        product = self._product(obj)
+        if not product:
+            return None
+        image = product.main_image()
+        if image and hasattr(image, 'url'):
+            return self._build_absolute_uri(image.url)
+        if product.base_image:
+            return self._build_absolute_uri(product.base_image.url)
+        return None
+
+    def get_number_of_ratings(self, obj):
+        product = self._product(obj)
+        return product.number_of_ratings() if product else 0
+
+    def get_average_rating(self, obj):
+        product = self._product(obj)
+        return product.average_rating() if product else 0
+
+    def get_pdf_file(self, obj):
+        product = self._product(obj)
+        if product and product.pdf_file:
+            return self._build_absolute_uri(product.pdf_file.url)
+        return None
+
+    def get_page_count(self, obj):
+        product = self._product(obj)
+        return product.page_count if product else None
+
+    def get_file_size_mb(self, obj):
+        product = self._product(obj)
+        return float(product.file_size_mb) if product and product.file_size_mb is not None else None
+
+    def get_language(self, obj):
+        product = self._product(obj)
+        return product.language if product else None
 
 
 class PillCouponApplySerializer(serializers.ModelSerializer):

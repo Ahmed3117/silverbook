@@ -21,7 +21,8 @@ from .serializers import *
 from .filters import CategoryFilter, CouponDiscountFilter, PillFilter, ProductFilter
 from .models import (
     Category, CouponDiscount,
-    ProductImage, Rating, SubCategory, Product, Pill
+    ProductImage, Rating, SubCategory, Product, Pill,
+    PurchasedBook
 )
 from .permissions import IsOwner, IsOwnerOrReadOnly
 
@@ -291,6 +292,43 @@ class UserPillsView(generics.ListAPIView):
     def get_queryset(self):
         return Pill.objects.filter(user=self.request.user).order_by('-date_added')
 
+
+class PurchasedBookListView(generics.ListAPIView):
+    serializer_class = PurchasedBookSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return (
+            PurchasedBook.objects.filter(user=self.request.user)
+            .select_related('product', 'product__teacher', 'pill')
+            .order_by('-created_at')
+        )
+
+
+class ProductOwnedCheckView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, product_number):
+        owned = PurchasedBook.objects.filter(
+            user=request.user,
+            product__product_number=product_number
+        ).exists()
+
+        product_id = (
+            Product.objects.filter(product_number=product_number)
+            .values_list('id', flat=True)
+            .first()
+        )
+
+        return Response(
+            {
+                'product_number': product_number,
+                'product_id': product_id,
+                'owned': owned
+            },
+            status=status.HTTP_200_OK
+        )
+
 class CustomerRatingListCreateView(generics.ListCreateAPIView):
     queryset = Rating.objects.all()
     serializer_class = RatingSerializer
@@ -365,7 +403,7 @@ class BestSellersView(generics.ListAPIView):
             total_sold=Sum(
                 Case(
                     When(
-                        pill_items__status__in=['p', 'd'],
+                        pill_items__status__in=['p'],
                         then='pill_items__quantity'
                     ),
                     default=0,
@@ -384,7 +422,7 @@ class BestSellersView(generics.ListAPIView):
                 recent_sold=Sum(
                     Case(
                         When(
-                            pill_items__status__in=['p', 'd'],
+                            pill_items__status__in=['p'],
                             pill_items__date_sold__gte=date_threshold,
                             then='pill_items__quantity'
                         ),
@@ -409,13 +447,13 @@ class FrequentlyBoughtTogetherView(generics.ListAPIView):
         # Get pills that contain the requested product
         pill_ids = PillItem.objects.filter(
             product_id=product_id,
-            status__in=['p', 'd']
+            status__in=['p']
         ).values_list('pill_id', flat=True)
         
         # Find other products in those pills
         frequent_products = Product.objects.filter(
             pill_items__pill_id__in=pill_ids,
-            pill_items__status__in=['p', 'd']
+            pill_items__status__in=['p']
         ).exclude(
             id=product_id
         ).annotate(
@@ -453,7 +491,7 @@ class ProductRecommendationsView(generics.ListAPIView):
         # Purchased products (using PillItem now)
         purchased_products = Product.objects.filter(
             pill_items__user=user,
-            pill_items__status__in=['p', 'd']
+            pill_items__status__in=['p']
         ).exclude(id__in=[p.id for p in recommendations]).distinct()
         recommendations.extend(list(purchased_products))
         
@@ -503,7 +541,7 @@ class PillItemRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     lookup_field = 'pk'
 
     def perform_destroy(self, instance):
-        if instance.pill and instance.pill.status in ['p', 'd']:
+        if instance.pill and instance.pill.status == 'p':
             raise serializers.ValidationError("Cannot delete items from paid/delivered pills")
         instance.delete()
 

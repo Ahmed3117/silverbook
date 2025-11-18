@@ -26,6 +26,9 @@ urlpatterns = [
     path('pills/<int:id>/apply-coupon/', views.PillCouponApplyView.as_view(), name='pill-coupon-apply'),
     path('pills/<int:id>/', views.PillDetailView.as_view(), name='pill-detail'),
     path('user-pills/', views.UserPillsView.as_view(), name='user-pills'),
+    path('my-books/', views.PurchasedBookListView.as_view(), name='purchased-books'),
+    # path('my-books/products/<str:product_number>/owned/', views.ProductOwnedCheckView.as_view(), name='book-owned-check-legacy'),
+    path('<str:product_number>/owned/', views.ProductOwnedCheckView.as_view(), name='book-owned-check'),
     path('ratings/', views.CustomerRatingListCreateView.as_view(), name='customer-rating-list-create'),
     path('ratings/<int:pk>/', views.CustomerRatingDetailView.as_view(), name='customer-rating-detail'),
     path('discounts/active/', views.ProductsWithActiveDiscountAPIView.as_view(), name='products-with-discount'),
@@ -92,8 +95,6 @@ urlpatterns = [
 
     # Webhooks
     path('api/webhook/shakeout/', shakeout_webhook, name='shakeout_webhook'),
-    path('api/webhook/easypay/', easypay_webhook, name='easypay_webhook'),
-    path('api/webhook/easypay/<str:api_key>/', easypay_webhook, name='easypay_webhook_with_key'),
     
     # Invoice Creation Endpoints
     path('pills/<int:pill_id>/create-shakeout-invoice/', payment_views.create_shakeout_invoice_view, name='create_shakeout_invoice'),

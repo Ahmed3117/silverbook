@@ -133,14 +133,14 @@ def handle_easypay_webhook_post(request, api_key):
             old_status = pill.status
             
             pill.paid = True
-            if pill.status in ['i', 'w']:  # If still initiated or waiting, move to paid
-                pill.status = 'p'
+            pill.status = 'p'
             
             # Update EasyPay data with webhook information 
-            if pill.easypay_data:
-                pill.easypay_data['webhook_received'] = True
-                pill.easypay_data['webhook_timestamp'] = timezone.now().isoformat()
-                pill.easypay_data['webhook_data'] = webhook_data
+            easypay_payload = pill.easypay_data or {}
+            easypay_payload['webhook_received'] = True
+            easypay_payload['webhook_timestamp'] = timezone.now().isoformat()
+            easypay_payload['webhook_data'] = webhook_data
+            pill.easypay_data = easypay_payload
             
             pill.save(update_fields=['paid', 'status', 'easypay_data'])
             
@@ -161,11 +161,12 @@ def handle_easypay_webhook_post(request, api_key):
             logger.info(f"Non-payment status received for pill {pill.pill_number}: {status_paid}")
             
             # Update EasyPay data with webhook information for non-payment statuses
-            if pill.easypay_data:
-                pill.easypay_data['webhook_received'] = True
-                pill.easypay_data['webhook_timestamp'] = timezone.now().isoformat()
-                pill.easypay_data['webhook_data'] = webhook_data
-                pill.save(update_fields=['easypay_data'])
+            easypay_payload = pill.easypay_data or {}
+            easypay_payload['webhook_received'] = True
+            easypay_payload['webhook_timestamp'] = timezone.now().isoformat()
+            easypay_payload['webhook_data'] = webhook_data
+            pill.easypay_data = easypay_payload
+            pill.save(update_fields=['easypay_data'])
         
         logger.info(f"✓ EasyPay webhook processed successfully for pill {pill.pill_number}")
         
