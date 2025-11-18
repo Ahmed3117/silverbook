@@ -6,7 +6,7 @@ from django.http import HttpResponse
 from .models import (
     Category, SubCategory, Subject, Teacher, Product, ProductImage, ProductDescription,
     PillItem, Pill, CouponDiscount, Rating, Discount, LovedProduct,
-    SpecialProduct, BestProduct
+    SpecialProduct, BestProduct, PurchasedBook
 )
 
 import json
@@ -162,7 +162,7 @@ class StockProblemListFilter(admin.SimpleListFilter):
 class PillAdmin(admin.ModelAdmin):
     list_display = [
         'pill_number', 'easypay_invoice_sequence', 'easypay_invoice_uid', 'user', 'status',
-        'stock_problem_status', 'final_price_display', 'get_calculate_over_tax_price',
+        'stock_problem_status', 'final_price_display',
     ]
     list_filter = ['status', StockProblemListFilter, FinalPriceListFilter]
     search_fields = ['pill_number', 'user__username']
@@ -172,12 +172,8 @@ class PillAdmin(admin.ModelAdmin):
 
     def final_price_display(self, obj):
         return obj.final_price()
-    def get_calculate_over_tax_price(self, obj):
-        return obj.calculate_over_tax_price()
     final_price_display.short_description = 'Final Price'
-    get_calculate_over_tax_price.short_description = 'Over Tax Price'
     final_price_display.admin_order_field = None
-    get_calculate_over_tax_price.admin_order_field = None
 
     def stock_problem_status(self, obj):
         """Display stock problem status"""
@@ -645,6 +641,13 @@ class LovedProductAdmin(admin.ModelAdmin):
     list_display = ('user', 'product', 'created_at')
     autocomplete_fields = ('user', 'product')
     search_fields = ('user__username', 'product__name')
+
+
+@admin.register(PurchasedBook)
+class PurchasedBookAdmin(admin.ModelAdmin):
+    list_display = ('product_name', 'user', 'pill', 'created_at')
+    list_filter = ('created_at',)
+    search_fields = ('product_name', 'user__username', 'user__name', 'pill__pill_number')
 
 
 

@@ -87,6 +87,9 @@ class CreatePaymentView(APIView):
             result = fawaterak_service.create_payment_invoice(pill)
             
             if result['success']:
+                pill.status = 'w'
+                pill.payment_gateway = 'fawaterak'
+                pill.save(update_fields=['status', 'payment_gateway'])
                 return Response({
                     'success': True,
                     'message': 'Payment invoice created successfully',
@@ -464,7 +467,9 @@ class CreateShakeoutInvoiceView(APIView):
                     pill.shakeout_invoice_ref = result['data']['invoice_ref']
                     pill.shakeout_data = result['data']
                     pill.shakeout_created_at = timezone.now()
-                    pill.save(update_fields=['shakeout_invoice_id', 'shakeout_invoice_ref', 'shakeout_data', 'shakeout_created_at'])
+                    pill.payment_gateway = 'shakeout'
+                    pill.status = 'w'
+                    pill.save(update_fields=['shakeout_invoice_id', 'shakeout_invoice_ref', 'shakeout_data', 'shakeout_created_at', 'payment_gateway', 'status'])
                     
                     return Response({
                         'success': True,
@@ -643,7 +648,8 @@ class CreateEasyPayInvoiceView(APIView):
                     pill.easypay_data = result['data']
                     pill.easypay_created_at = timezone.now()
                     pill.payment_gateway = 'easypay'
-                    pill.save(update_fields=['easypay_invoice_uid', 'easypay_invoice_sequence', 'easypay_fawry_ref', 'easypay_data', 'easypay_created_at', 'payment_gateway'])
+                    pill.status = 'w'
+                    pill.save(update_fields=['easypay_invoice_uid', 'easypay_invoice_sequence', 'easypay_fawry_ref', 'easypay_data', 'easypay_created_at', 'payment_gateway', 'status'])
 
                     return Response({
                         'success': True,
@@ -811,7 +817,8 @@ class CreatePaymentInvoiceView(APIView):
                         pill.easypay_data = result['data']
                         pill.easypay_created_at = timezone.now()
                         pill.payment_gateway = 'easypay'
-                        pill.save(update_fields=['easypay_invoice_uid', 'easypay_invoice_sequence', 'easypay_fawry_ref', 'easypay_data', 'easypay_created_at', 'payment_gateway'])
+                        pill.status = 'w'
+                        pill.save(update_fields=['easypay_invoice_uid', 'easypay_invoice_sequence', 'easypay_fawry_ref', 'easypay_data', 'easypay_created_at', 'payment_gateway', 'status'])
 
                         return Response({
                             'success': True,
@@ -871,7 +878,8 @@ class CreatePaymentInvoiceView(APIView):
                     pill.shakeout_data = result['data']
                     pill.shakeout_created_at = timezone.now()
                     pill.payment_gateway = 'shakeout'
-                    pill.save(update_fields=['shakeout_invoice_id', 'shakeout_invoice_ref', 'shakeout_data', 'shakeout_created_at', 'payment_gateway'])
+                    pill.status = 'w'
+                    pill.save(update_fields=['shakeout_invoice_id', 'shakeout_invoice_ref', 'shakeout_data', 'shakeout_created_at', 'payment_gateway', 'status'])
                     
                     return Response({
                         'success': True,

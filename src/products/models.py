@@ -46,7 +46,6 @@ PILL_STATUS_CHOICES = [
     ('i', 'initiated'),
     ('w', 'Waiting'),
     ('p', 'Paid'),
-    ('d', 'done'),
 ]
 
 PAYMENT_GATEWAY_CHOICES = [
@@ -357,11 +356,11 @@ class PillItem(models.Model):
 
     def save(self, *args, **kwargs):
         # Set date_sold when status changes to 'paid' or 'done'
-        if self.status in ['p', 'd'] and not self.date_sold:
+        if self.status == 'p' and not self.date_sold:
             self.date_sold = timezone.now()
             
         # Set prices if not already set
-        if self.status in ['p', 'd'] and not self.price_at_sale:
+        if self.status == 'p' and not self.price_at_sale:
             self.price_at_sale = self.product.discounted_price()
             
         super().save(*args, **kwargs)
@@ -400,19 +399,26 @@ class Pill(models.Model):
     def save(self, *args, **kwargs):
         if not self.pill_number:
             self.pill_number = generate_pill_number()
-        
+
         is_new = not self.pk
+        previous_status = None
+        if not is_new:
+            previous_status = Pill.objects.filter(pk=self.pk).values_list('status', flat=True).first()
+
         super().save(*args, **kwargs)
-        
+
         # For new orders, sync status to items
         if is_new:
             for item in self.items.all():
                 item.status = self.status
-                if self.status in ['p', 'd'] and not item.date_sold:
+                if self.status == 'p' and not item.date_sold:
                     item.date_sold = timezone.now()
-                if self.status in ['p', 'd'] and not item.price_at_sale:
+                if self.status == 'p' and not item.price_at_sale:
                     item.price_at_sale = item.product.discounted_price()
                 item.save()
+
+        if self.status == 'p' and (is_new or previous_status != 'p'):
+            self.grant_purchased_books()
 
     def items_subtotal(self):
         """Return the subtotal for the pill using current discounted product prices."""
@@ -441,6 +447,46 @@ class Pill(models.Model):
             'total_items': total_items,
             'problem_items_count': 0
         }
+
+    @property
+    def paid(self):
+        return self.status == 'p'
+
+    @paid.setter
+    def paid(self, value):
+        if value:
+            self.status = 'p'
+
+    def grant_purchased_books(self):
+        from .models import PurchasedBook
+
+        items = self.items.select_related('product').all()
+        for item in items:
+            product = getattr(item, 'product', None)
+            if not product:
+                continue
+
+            PurchasedBook.objects.update_or_create(
+                user=self.user,
+                pill=self,
+                product=product,
+                defaults={
+                    'product_name': product.name,
+                    'pill_item': item
+                }
+            )
+
+    def send_payment_notification(self):
+        """Notify the user that payment succeeded. Currently sends WhatsApp if phone exists."""
+        phone = getattr(self.user, 'phone', None) or getattr(self.user, 'parent_phone', None)
+        if not phone:
+            logger.info("No phone on file for user %s; skipping payment notification.", self.user_id)
+            return
+
+        try:
+            prepare_whatsapp_message(phone, self)
+        except Exception as exc:  # pragma: no cover - best effort notification
+            logger.warning("Failed to send payment notification for pill %s: %s", self.pill_number, exc)
 
     @property
     def shakeout_payment_url(self):
@@ -570,6 +616,22 @@ class LovedProduct(models.Model):
 
     def __str__(self):
         return f"{self.product.name} loved by {self.user.username if self.user else 'anonymous'}"
+
+
+class PurchasedBook(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='purchased_books')
+    pill = models.ForeignKey(Pill, on_delete=models.CASCADE, related_name='purchased_books')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='purchased_books')
+    pill_item = models.ForeignKey(PillItem, on_delete=models.SET_NULL, null=True, blank=True, related_name='purchased_books')
+    product_name = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('pill', 'product')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.product_name} - {self.user}"
 
 
 def prepare_whatsapp_message(phone_number, pill):
