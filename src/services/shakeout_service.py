@@ -82,44 +82,30 @@ class ShakeoutService:
                 "address": f"{profile['address']}"
             }
             
-            # Calculate totals
-            items_total = sum(item.product.discounted_price() * item.quantity for item in pill.items.all())
-            shipping_cost = pill.shipping_price()
-            total_discount = pill.calculate_coupon_discount() + pill.calculate_gift_discount()
-            final_amount = pill.final_price()
-            
-            # Prepare invoice items (all prices must be positive)
+            # Calculate totals for digital products (quantity always 1)
             invoice_items = []
-            
-            # Add product items
-            for item in pill.items.all():
-                item_name = item.product.name
-                if item.size:
-                    item_name += f" (Size: {item.size}"
-                    if item.color:
-                        item_name += f", Color: {item.color.name})"
-                    else:
-                        item_name += ")"
-                elif item.color:
-                    item_name += f" (Color: {item.color.name})"
-                
+            for item in pill.items.select_related('product').all():
+                product = getattr(item, 'product', None)
+                if not product:
+                    continue
+
+                price = product.discounted_price()
+                if price is None:
+                    price = product.price or 0.0
+
                 invoice_items.append({
-                    "name": item_name,
-                    "price": float(item.product.discounted_price()),
-                    "quantity": item.quantity
-                })
-            
-            # Add shipping as separate item if exists
-            if shipping_cost > 0:
-                invoice_items.append({
-                    "name": "Shipping Fee",
-                    "price": float(shipping_cost),
+                    "name": product.name,
+                    "price": float(price),
                     "quantity": 1
                 })
-            
-            # Handle discount differently - use Shake-out's discount system instead of negative items
+
+            shipping_cost = 0.0
+            total_discount = float(getattr(pill, 'coupon_discount', 0.0) or 0.0)
+            final_amount = float(pill.final_price())
+
+            # Handle discounts via Shake-out discount fields
             discount_enabled = total_discount > 0
-            discount_value = float(total_discount) if discount_enabled else 0
+            discount_value = total_discount if discount_enabled else 0.0
             
             # Prepare invoice data
             invoice_data = {

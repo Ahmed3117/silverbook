@@ -21,6 +21,44 @@ from services.easypay_service import easypay_service  # Add EasyPay service impo
 
 logger = logging.getLogger(__name__)
 
+
+def _serialize_easypay_invoice(pill, attempts=0):
+    data = pill.easypay_data or {}
+    payment_url = data.get('payment_url') or pill.easypay_payment_url
+    amount = data.get('amount') or pill.final_price()
+    invoice_details = data.get('invoice_details', {}) if isinstance(data, dict) else {}
+    fawry_ref = (
+        invoice_details.get('fawry_ref')
+        or data.get('fawry_ref')
+        or pill.easypay_fawry_ref
+    )
+
+    return {
+        'invoice_uid': pill.easypay_invoice_uid,
+        'invoice_sequence': pill.easypay_invoice_sequence,
+        'payment_url': payment_url,
+        'amount': str(amount) if amount is not None else None,
+        'pill_number': pill.pill_number,
+        'payment_method': data.get('payment_method', 'fawry'),
+        'payment_gateway': 'easypay',
+        'fawry_ref': fawry_ref,
+        'attempts': attempts
+    }
+
+
+def _serialize_shakeout_invoice(pill):
+    data = pill.shakeout_data or {}
+    payment_url = data.get('payment_url') or data.get('url') or pill.shakeout_payment_url
+    total_amount = data.get('total_amount') or float(pill.final_price())
+
+    return {
+        'invoice_id': pill.shakeout_invoice_id,
+        'invoice_ref': pill.shakeout_invoice_ref,
+        'payment_url': payment_url,
+        'total_amount': total_amount,
+        'payment_gateway': 'shakeout'
+    }
+
 def is_fawry_ref_error(fawry_ref):
     """Check if fawry_ref contains an error"""
     if not fawry_ref:
@@ -376,16 +414,10 @@ class CreateShakeoutInvoiceView(APIView):
                 else:
                     logger.warning(f"Pill {pill_id} already has active Shake-out invoice: {pill.shakeout_invoice_id}")
                     return Response({
-                        'success': False,
-                        'error': 'Pill already has a Shake-out invoice',
-                        'data': {
-                            'invoice_id': pill.shakeout_invoice_id,
-                            'invoice_ref': pill.shakeout_invoice_ref,
-                            'payment_url': pill.shakeout_payment_url,
-                            'created_at': pill.shakeout_created_at.isoformat() if pill.shakeout_created_at else None,
-                            'status': 'active'
-                        }
-                    }, status=status.HTTP_400_BAD_REQUEST)
+                        'success': True,
+                        'message': 'Shakeout invoice already exists',
+                        'data': _serialize_shakeout_invoice(pill)
+                    }, status=status.HTTP_200_OK)
             
             # Check stock availability before creating invoice
             logger.info(f"Checking stock availability for pill {pill_id}")
@@ -550,17 +582,10 @@ class CreateEasyPayInvoiceView(APIView):
                 else:
                     logger.warning(f"Pill {pill_id} already has active EasyPay invoice: {pill.easypay_invoice_uid}")
                     return Response({
-                        'success': False,
-                        'error': 'Pill already has an EasyPay invoice',
-                        'data': {
-                            'invoice_uid': pill.easypay_invoice_uid,
-                            'invoice_sequence': pill.easypay_invoice_sequence,
-                            'fawry_ref': pill.easypay_fawry_ref,
-                            'payment_url': pill.easypay_payment_url,
-                            'created_at': pill.easypay_created_at.isoformat() if pill.easypay_created_at else None,
-                            'status': 'active'
-                        }
-                    }, status=status.HTTP_400_BAD_REQUEST)
+                        'success': True,
+                        'message': 'EasyPay invoice already exists',
+                        'data': _serialize_easypay_invoice(pill, attempts=0)
+                    }, status=status.HTTP_200_OK)
             
             # Check stock availability before creating invoice
             logger.info(f"Checking stock availability for pill {pill_id}")
@@ -654,15 +679,7 @@ class CreateEasyPayInvoiceView(APIView):
                     return Response({
                         'success': True,
                         'message': 'EasyPay invoice created successfully',
-                        'data': {
-                            'invoice_uid': result['data']['invoice_uid'],
-                            'invoice_sequence': result['data']['invoice_sequence'],
-                            'payment_url': result['data']['payment_url'],
-                            'amount': result['data']['amount'],
-                            'pill_number': pill.pill_number,
-                            'payment_method': result['data'].get('payment_method', 'fawry'),
-                            'attempts': attempt + 1
-                        }
+                        'data': _serialize_easypay_invoice(pill, attempts=attempt + 1)
                     }, status=status.HTTP_201_CREATED)
                 else:
                     # EasyPay service returned an error
@@ -752,16 +769,10 @@ class CreatePaymentInvoiceView(APIView):
                 if pill.easypay_invoice_uid and not pill.is_easypay_invoice_expired():
                     logger.warning(f"Pill {pill_id} already has active EasyPay invoice")
                     return Response({
-                        'success': False,
-                        'error': 'Pill already has an active EasyPay invoice',
-                        'data': {
-                            'invoice_uid': pill.easypay_invoice_uid,
-                            'invoice_sequence': pill.easypay_invoice_sequence,
-                            'fawry_ref': pill.easypay_fawry_ref,
-                            'payment_url': pill.easypay_payment_url,
-                            'payment_gateway': 'easypay'
-                        }
-                    }, status=status.HTTP_400_BAD_REQUEST)
+                        'success': True,
+                        'message': 'EasyPay invoice already exists',
+                        'data': _serialize_easypay_invoice(pill, attempts=0)
+                    }, status=status.HTTP_200_OK)
                 
                 # Try creating the invoice with retry logic for fawry_ref errors
                 max_retries = 2  # Initial attempt + 1 retry
@@ -823,14 +834,7 @@ class CreatePaymentInvoiceView(APIView):
                         return Response({
                             'success': True,
                             'message': 'EasyPay invoice created successfully',
-                            'data': {
-                                'invoice_uid': result['data']['invoice_uid'],
-                                'invoice_sequence': result['data']['invoice_sequence'],
-                                'payment_url': result['data']['payment_url'],
-                                'amount': result['data']['amount'],
-                                'payment_gateway': 'easypay',
-                                'attempts': attempt + 1
-                            }
+                            'data': _serialize_easypay_invoice(pill, attempts=attempt + 1)
                         }, status=status.HTTP_201_CREATED)
                     else:
                         # EasyPay service returned an error
@@ -860,15 +864,10 @@ class CreatePaymentInvoiceView(APIView):
                 if pill.shakeout_invoice_id and not pill.is_shakeout_invoice_expired():
                     logger.warning(f"Pill {pill_id} already has active Shakeout invoice")
                     return Response({
-                        'success': False,
-                        'error': 'Pill already has an active Shakeout invoice',
-                        'data': {
-                            'invoice_id': pill.shakeout_invoice_id,
-                            'invoice_ref': pill.shakeout_invoice_ref,
-                            'payment_url': pill.shakeout_payment_url,
-                            'payment_gateway': 'shakeout'
-                        }
-                    }, status=status.HTTP_400_BAD_REQUEST)
+                        'success': True,
+                        'message': 'Shakeout invoice already exists',
+                        'data': _serialize_shakeout_invoice(pill)
+                    }, status=status.HTTP_200_OK)
                 
                 result = shakeout_service.create_payment_invoice(pill)
                 
