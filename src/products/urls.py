@@ -29,8 +29,10 @@ urlpatterns = [
     path('my-books/', views.PurchasedBookListView.as_view(), name='purchased-books'),
     path('<str:product_number>/add-free/', views.AddFreeBookView.as_view(), name='add-free-book'),
     path('<str:product_number>/owned/', views.ProductOwnedCheckView.as_view(), name='book-owned-check'),
-    path('ratings/', views.CustomerRatingListCreateView.as_view(), name='customer-rating-list-create'),
-    path('ratings/<int:pk>/', views.CustomerRatingDetailView.as_view(), name='customer-rating-detail'),
+    path('<int:product_id>/ratings/', views.ProductRatingListCreateView.as_view(), name='product-rating-list-create'),
+    path('<int:product_id>/ratings/<int:pk>/', views.ProductRatingDetailView.as_view(), name='product-rating-detail'),
+    # Allow update/delete by rating id only (owner-only)
+    path('ratings/<int:pk>/', views.RatingByIdOwnerDetailView.as_view(), name='rating-detail-by-id'),
     path('discounts/active/', views.ProductsWithActiveDiscountAPIView.as_view(), name='products-with-discount'),
     path('loved-products/', views.LovedProductListCreateView.as_view(), name='loved-product-list-create'),
     path('loved-products/<int:pk>/', views.LovedProductRetrieveDestroyView.as_view(), name='loved-product-detail'),

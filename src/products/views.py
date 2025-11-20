@@ -2,7 +2,7 @@ from datetime import timedelta
 import random
 import logging
 from django.shortcuts import get_object_or_404
-from django.db.models import Count, Sum, F
+from django.db.models import Count, Sum, F, Avg
 from django.db import transaction
 
 logger = logging.getLogger(__name__)
@@ -373,18 +373,104 @@ class AddFreeBookView(APIView):
         serializer = PurchasedBookSerializer(purchased_book, context={'request': request})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-class CustomerRatingListCreateView(generics.ListCreateAPIView):
-    queryset = Rating.objects.all()
+
+class RatingPagination(CustomPageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+class ProductRatingListCreateView(generics.ListCreateAPIView):
     serializer_class = RatingSerializer
-    permission_classes = [IsAuthenticated]
+    pagination_class = RatingPagination
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [AllowAny()]
+        return [IsAuthenticated()]
 
     def get_queryset(self):
-        return Rating.objects.filter(user=self.request.user)
+        return (
+            Rating.objects.filter(product_id=self.kwargs['product_id'])
+            .select_related('user')
+            .order_by('-date_added')
+        )
 
-class CustomerRatingDetailView(generics.RetrieveUpdateDestroyAPIView):
+    def _get_product(self):
+        if not hasattr(self, '_product_cache'):
+            self._product_cache = get_object_or_404(Product, pk=self.kwargs['product_id'])
+        return self._product_cache
+
+    def list(self, request, *args, **kwargs):
+        product = self._get_product()
+        queryset = self.get_queryset()
+
+        stats = queryset.aggregate(avg=Avg('star_number'), count=Count('id'))
+        average = stats['avg']
+        average = round(float(average), 1) if average is not None else 0.0
+        ratings_count = stats['count'] or 0
+
+        current_user_rating = None
+        user = request.user if request.user.is_authenticated else None
+        if user:
+            user_rating = queryset.filter(user=user).first()
+            if user_rating:
+                current_user_rating = self.get_serializer(user_rating).data
+
+        page = self.paginate_queryset(queryset)
+        pagination = None
+        if page is not None:
+            ratings_data = self.get_serializer(page, many=True).data
+            paginator = self.paginator
+            pagination = {
+                'count': paginator.page.paginator.count,
+                'total_pages': paginator.page.paginator.num_pages,
+                'current_page': paginator.page.number,
+                'next': paginator.get_next_link(),
+                'previous': paginator.get_previous_link(),
+                'page_size': paginator.get_page_size(self.request),
+            }
+        else:
+            ratings_data = self.get_serializer(queryset, many=True).data
+
+        return Response(
+            {
+                'product_id': product.id,
+                'product_number': product.product_number,
+                'product_name': product.name,
+                'average_rating': average,
+                'ratings_count': ratings_count,
+                'current_user_rating': current_user_rating,
+                'ratings': ratings_data,
+                'pagination': pagination,
+            },
+            status=status.HTTP_200_OK
+        )
+
+    def perform_create(self, serializer):
+        product = self._get_product()
+        user = self.request.user
+        if Rating.objects.filter(product=product, user=user).exists():
+            raise ValidationError('You already rated this product. Use the update endpoint instead.')
+        serializer.save(user=user, product=product)
+
+
+class ProductRatingDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = RatingSerializer
+    permission_classes = [IsAuthenticated, IsOwner]
+
+    def get_queryset(self):
+        return Rating.objects.filter(
+            product_id=self.kwargs['product_id'],
+            user=self.request.user
+        )
+
+
+class RatingByIdOwnerDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """Allow retrieve/update/delete of a Rating by its id. Owner-only."""
     queryset = Rating.objects.all()
     serializer_class = RatingSerializer
     permission_classes = [IsAuthenticated, IsOwner]
+    lookup_field = 'pk'
 
 
 class ProductsWithActiveDiscountAPIView(APIView):

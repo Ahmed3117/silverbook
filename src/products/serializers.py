@@ -71,21 +71,6 @@ class ProductImageSerializer(serializers.ModelSerializer):
         model = ProductImage
         fields = '__all__'
 
-class RatingSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Rating
-        fields = ['id', 'product', 'user', 'star_number', 'review', 'date_added']
-        read_only_fields = ['date_added', 'user']
-
-    def validate(self, data):
-        if data.get('star_number') < 1 or data.get('star_number') > 5:
-            raise serializers.ValidationError("Star number must be between 1 and 5.")
-        return data
-
-    def create(self, validated_data):
-        validated_data['user'] = self.context['request'].user
-        return super().create(validated_data)
-
 class ProductImageBulkUploadSerializer(serializers.Serializer):
     product = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all())
     images = serializers.ListField(
@@ -245,18 +230,30 @@ class SpecialProductSerializer(serializers.ModelSerializer):
 
 
 class RatingSerializer(serializers.ModelSerializer):
+    user = serializers.CharField(source='user.name', read_only=True)
+
     class Meta:
         model = Rating
         fields = ['id', 'product', 'user', 'star_number', 'review', 'date_added']
         read_only_fields = ['date_added', 'user']
+        extra_kwargs = {
+            'product': {'required': False}
+        }
 
     def validate(self, data):
-        if data.get('star_number') < 1 or data.get('star_number') > 5:
+        star_number = data.get('star_number')
+        if star_number is not None and (star_number < 1 or star_number > 5):
             raise serializers.ValidationError("Star number must be between 1 and 5.")
         return data
 
     def create(self, validated_data):
-        validated_data['user'] = self.context['request'].user
+        request = self.context.get('request')
+        if request and getattr(request, 'user', None) and request.user.is_authenticated:
+            validated_data.setdefault('user', request.user)
+
+        product = self.context.get('product')
+        if product:
+            validated_data.setdefault('product', product)
         return super().create(validated_data)
 
 

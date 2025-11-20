@@ -3,7 +3,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from accounts.models import User
-from .models import Category, Subject, Teacher, Product, Pill, PillItem, PurchasedBook
+from .models import Category, Subject, Teacher, Product, Pill, PillItem, PurchasedBook, Rating
 class PurchasedBookTests(APITestCase):
 	def setUp(self):
 		self.user = User.objects.create_user(
@@ -174,3 +174,124 @@ class PurchasedBookTests(APITestCase):
 		second_response = self.client.post(url)
 		self.assertEqual(second_response.status_code, status.HTTP_400_BAD_REQUEST)
 		self.assertIn('already exists', second_response.data['detail'])
+
+
+class RatingTests(APITestCase):
+	def setUp(self):
+		self.user = User.objects.create_user(
+			username='reviewer',
+			password='pass1234',
+			name='Reviewer'
+		)
+		self.other_user = User.objects.create_user(
+			username='reviewer2',
+			password='pass1234',
+			name='Reviewer 2'
+		)
+		self.client.force_authenticate(user=self.user)
+
+		self.category = Category.objects.create(name='Math')
+		self.subject = Subject.objects.create(name='Algebra')
+		self.teacher = Teacher.objects.create(name='Prof. Alan', subject=self.subject)
+		self.product = Product.objects.create(
+			name='Algebra Basics',
+			price=120,
+			category=self.category,
+			subject=self.subject,
+			teacher=self.teacher
+		)
+		self.list_url = reverse('products:product-rating-list-create', args=[self.product.id])
+
+	def test_user_can_create_rating_for_product(self):
+		payload = {'star_number': 4, 'review': 'Great'}
+		response = self.client.post(self.list_url, payload, format='json')
+		self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+		self.assertEqual(Rating.objects.count(), 1)
+		rating = Rating.objects.get()
+		self.assertEqual(rating.user, self.user)
+		self.assertEqual(rating.product, self.product)
+
+	def test_user_cannot_rate_same_product_twice(self):
+		payload = {'star_number': 5, 'review': 'Excellent'}
+		first = self.client.post(self.list_url, payload, format='json')
+		self.assertEqual(first.status_code, status.HTTP_201_CREATED)
+		second = self.client.post(self.list_url, payload, format='json')
+		self.assertEqual(second.status_code, status.HTTP_400_BAD_REQUEST)
+		self.assertIn('already rated', second.data['detail'])
+
+	def test_product_rating_list_includes_average_and_all_entries(self):
+		self.client.post(self.list_url, {'star_number': 4, 'review': 'Nice'}, format='json')
+		self.client.force_authenticate(user=self.other_user)
+		self.client.post(self.list_url, {'star_number': 5, 'review': 'Loved it'}, format='json')
+		self.client.force_authenticate(user=self.user)
+
+		response = self.client.get(self.list_url)
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+		self.assertEqual(response.data['ratings_count'], 2)
+		self.assertEqual(response.data['average_rating'], 4.5)
+		self.assertEqual(len(response.data['ratings']), 2)
+		self.assertIsNotNone(response.data['current_user_rating'])
+		self.assertIsNotNone(response.data['pagination'])
+		self.assertEqual(response.data['pagination']['current_page'], 1)
+		self.assertEqual(response.data['pagination']['page_size'], 10)
+		self.assertSetEqual(
+			set(r['user'] for r in response.data['ratings']),
+			{'Reviewer', 'Reviewer 2'}
+		)
+
+	def test_current_user_rating_included_in_list(self):
+		create = self.client.post(self.list_url, {'star_number': 3, 'review': 'Okay'}, format='json')
+		self.assertEqual(create.status_code, status.HTTP_201_CREATED)
+
+		response = self.client.get(self.list_url)
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+		self.assertIsNotNone(response.data['current_user_rating'])
+		self.assertEqual(response.data['current_user_rating']['star_number'], 3)
+
+	def test_current_user_rating_none_when_not_rated(self):
+		self.client.force_authenticate(user=self.other_user)
+		self.client.post(self.list_url, {'star_number': 5, 'review': 'Great'}, format='json')
+		self.client.force_authenticate(user=self.user)
+
+		response = self.client.get(self.list_url)
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+		self.assertIsNone(response.data['current_user_rating'])
+
+	def test_user_can_update_and_delete_rating(self):
+		create = self.client.post(self.list_url, {'star_number': 2, 'review': 'Bad'}, format='json')
+		self.assertEqual(create.status_code, status.HTTP_201_CREATED)
+		rating_id = create.data['id']
+		detail_url = reverse('products:product-rating-detail', args=[self.product.id, rating_id])
+
+		update = self.client.patch(detail_url, {'star_number': 5}, format='json')
+		self.assertEqual(update.status_code, status.HTTP_200_OK)
+		self.assertEqual(update.data['star_number'], 5)
+
+		delete = self.client.delete(detail_url)
+		self.assertEqual(delete.status_code, status.HTTP_204_NO_CONTENT)
+		self.assertFalse(Rating.objects.filter(id=rating_id).exists())
+
+	def test_rating_list_pagination_controls(self):
+		self.client.post(self.list_url, {'star_number': 3, 'review': 'My review'}, format='json')
+		# Create additional ratings from distinct users
+		for idx in range(12):
+			user = User.objects.create_user(
+				username=f'bulk{idx}',
+				password='pass1234',
+				name=f'Bulk User {idx}'
+			)
+			Rating.objects.create(
+				product=self.product,
+				user=user,
+				star_number=(idx % 5) + 1,
+				review=f'Review {idx}'
+			)
+
+		url = f"{self.list_url}?page=2&page_size=5"
+		response = self.client.get(url)
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+		self.assertEqual(response.data['ratings_count'], 13)
+		self.assertEqual(response.data['pagination']['current_page'], 2)
+		self.assertEqual(response.data['pagination']['total_pages'], 3)
+		self.assertEqual(response.data['pagination']['page_size'], 5)
+		self.assertEqual(len(response.data['ratings']), 5)
