@@ -135,3 +135,42 @@ class PurchasedBookTests(APITestCase):
 		self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 		self.assertIn('items', response.data)
 		self.assertIn('already owned', response.data['items'][0])
+
+	def test_add_free_book_success(self):
+		free_product = Product.objects.create(
+			name='Free Book',
+			price=0,
+			category=self.category,
+			subject=self.subject,
+			teacher=self.teacher
+		)
+
+		url = reverse('products:add-free-book', args=[free_product.product_number])
+		response = self.client.post(url)
+
+		self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+		self.assertTrue(PurchasedBook.objects.filter(user=self.user, product=free_product).exists())
+		self.assertEqual(response.data['product_id'], free_product.id)
+
+	def test_add_free_book_requires_free_price(self):
+		url = reverse('products:add-free-book', args=[self.product.product_number])
+		response = self.client.post(url)
+		self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+		self.assertIn('not free', response.data['detail'])
+
+	def test_add_free_book_prevents_duplicates(self):
+		free_product = Product.objects.create(
+			name='Another Free Book',
+			price=0,
+			category=self.category,
+			subject=self.subject,
+			teacher=self.teacher
+		)
+
+		url = reverse('products:add-free-book', args=[free_product.product_number])
+		first_response = self.client.post(url)
+		self.assertEqual(first_response.status_code, status.HTTP_201_CREATED)
+
+		second_response = self.client.post(url)
+		self.assertEqual(second_response.status_code, status.HTTP_400_BAD_REQUEST)
+		self.assertIn('already exists', second_response.data['detail'])
