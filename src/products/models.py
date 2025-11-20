@@ -564,7 +564,8 @@ class Rating(models.Model):
         return range(int(self.star_number)), range(5 - int(self.star_number))
 
     class Meta:
-        ordering = ['-date_added'] 
+        ordering = ['-date_added']
+        unique_together = ('product', 'user')
 
 class Discount(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, null=True, blank=True, related_name='discounts')
