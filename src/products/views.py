@@ -3,6 +3,7 @@ import random
 import logging
 from django.shortcuts import get_object_or_404
 from django.db.models import Count, Sum, F
+from django.db import transaction
 
 logger = logging.getLogger(__name__)
 from django.utils import timezone
@@ -22,7 +23,7 @@ from .filters import CategoryFilter, CouponDiscountFilter, PillFilter, ProductFi
 from .models import (
     Category, CouponDiscount,
     ProductImage, Rating, SubCategory, Product, Pill,
-    PurchasedBook
+    PurchasedBook, PillItem
 )
 from .permissions import IsOwner, IsOwnerOrReadOnly
 
@@ -328,6 +329,49 @@ class ProductOwnedCheckView(APIView):
             },
             status=status.HTTP_200_OK
         )
+
+
+class AddFreeBookView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, product_number):
+        product = get_object_or_404(
+            Product,
+            product_number=product_number,
+            is_available=True
+        )
+
+        effective_price = product.discounted_price()
+        if effective_price is None:
+            effective_price = product.price or 0
+
+        if float(effective_price or 0) > 0:
+            return Response(
+                {'detail': 'Product is not free and cannot be added directly.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if PurchasedBook.objects.filter(user=request.user, product=product).exists():
+            return Response(
+                {'detail': 'This book already exists in your library.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        with transaction.atomic():
+            pill = Pill.objects.create(user=request.user, status='p')
+            pill_item = PillItem.objects.create(
+                user=request.user,
+                product=product,
+                status='p',
+                pill=pill,
+                price_at_sale=float(effective_price or 0)
+            )
+            pill.items.add(pill_item)
+            pill.grant_purchased_books()
+
+        purchased_book = PurchasedBook.objects.get(user=request.user, product=product)
+        serializer = PurchasedBookSerializer(purchased_book, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 class CustomerRatingListCreateView(generics.ListCreateAPIView):
     queryset = Rating.objects.all()
@@ -858,10 +902,7 @@ class PillListCreateView(generics.ListCreateAPIView):
         ).prefetch_related(
             Prefetch(
                 'items',
-                queryset=PillItem.objects.select_related(
-                    'product',
-                    'color'
-                )
+                queryset=PillItem.objects.select_related('product')
             )
         ).annotate(
             items_count=Count('items')

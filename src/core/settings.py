@@ -255,7 +255,7 @@ DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 """
 
 
-ACTIVE_SITE_NAME = os.getenv('ACTIVE_SITE_NAME', 'easytech')
+ACTIVE_SITE_NAME = os.getenv('ACTIVE_SITE_NAME', 'silverbook')
 
 # ^ < ==========================Payment CONFIG========================== >
 
@@ -264,7 +264,7 @@ ACTIVE_SITE_NAME = os.getenv('ACTIVE_SITE_NAME', 'easytech')
 ACTIVE_PAYMENT_METHOD = os.getenv('ACTIVE_PAYMENT_METHOD', 'easypay').lower()  # 'shakeout' or 'easypay'
 
 # Site URL
-SITE_URL = os.getenv('SITE_URL', 'https://api2.bookefay.com')
+SITE_URL = os.getenv('SITE_URL', 'https://silverbook.easy-stream.net')
 
 # Shake-out Configuration - with fallbacks and validation
 SUCCESS_URL = os.getenv('SUCCESS_URL', 'http://bookefay.com/payment-redirect/success/')
