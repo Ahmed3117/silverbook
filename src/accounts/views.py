@@ -143,6 +143,30 @@ class GetUserData(generics.RetrieveAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+class DeleteAccountView(APIView):
+    """Allow an authenticated student to permanently delete their account."""
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request):
+        user = request.user
+
+        if user.is_staff or user.is_superuser:
+            return Response(
+                {'detail': 'Admin accounts cannot be deleted via this endpoint.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        username = user.username
+        user.delete()
+        return Response(
+            {
+                'message': 'Account deleted successfully.',
+                'username': username
+            },
+            status=status.HTTP_200_OK
+        )
     
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
