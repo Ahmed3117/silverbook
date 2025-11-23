@@ -113,7 +113,7 @@ class CreatePaymentView(APIView):
             pill = get_object_or_404(Pill, id=pill_id, user=request.user)
             
             # Check if pill is already paid
-            if pill.paid:
+            if pill.status == 'p':
                 return Response({
                     'success': False,
                     'error': 'This order is already paid',
@@ -166,7 +166,7 @@ class CheckPaymentStatusView(APIView):
         try:
             pill = get_object_or_404(Pill, id=pill_id, user=request.user)
             
-            if pill.paid:
+            if pill.status == 'p':
                 return Response({
                     'success': True,
                     'message': 'Payment confirmed',
@@ -209,8 +209,8 @@ class CheckPaymentStatusView(APIView):
                 payment_status = invoice_data.get('status', '').lower()
                 
                 if payment_status in ['paid', 'success', 'completed']:
-                    pill.paid = True
-                    pill.save()
+                    pill.status = 'p'
+                    pill.save(update_fields=['status'])
                     
                     return Response({
                         'success': True,
@@ -275,10 +275,9 @@ def fawaterak_webhook(request):
         if webhook_data.get('invoice_status') == 'paid':
             pill_number = pay_load.get('pill_number')
             pill = Pill.objects.get(pill_number=pill_number)
-            pill.paid = True
             pill.status = 'p'
             pill.invoice_id = webhook_data.get('invoice_id')
-            pill.save()
+            pill.save(update_fields=['status', 'invoice_id'])
 
             return Response({
                 'success': True,
@@ -317,9 +316,8 @@ class PaymentSuccessView(APIView):
                 payment_status = invoice_data.get('status', '').lower()
                 
                 if payment_status in ['paid', 'success', 'completed']:
-                    pill.paid = True
                     pill.status = 'p'
-                    pill.save()
+                    pill.save(update_fields=['status'])
                     
                     logger.info(f"✓ Payment SUCCESS confirmed for pill {pill_number}")
                     
@@ -945,11 +943,11 @@ class CheckEasyPayInvoiceStatusView(APIView):
             
             # Update pill if payment is confirmed in EasyPay but not in our system
             updated = False
-            if payment_status.lower() == 'paid' and not pill.paid:
+            normalized_status = payment_status.lower()
+            if normalized_status in ['paid', 'success', 'completed'] and pill.status != 'p':
                 logger.info(f"Updating pill {pill_id} as paid (confirmed by EasyPay)")
-                pill.paid = True
                 pill.status = 'p'  # Set status to paid
-                pill.save(update_fields=['paid', 'status'])
+                pill.save(update_fields=['status'])
                 updated = True
                 
                 logger.info(f"Pill {pill_id} payment status updated successfully")
@@ -961,7 +959,7 @@ class CheckEasyPayInvoiceStatusView(APIView):
                 'data': {
                     'pill_number': pill.pill_number,
                     'pill_id': pill.id,
-                    'paid': pill.paid,
+                    'paid': pill.status == 'p',
                     'status': pill.get_status_display(),
                     'total_amount': float(pill.final_price()),
                     'currency': 'EGP',

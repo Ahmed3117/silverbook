@@ -128,11 +128,7 @@ def handle_easypay_webhook_post(request, api_key):
         if status_paid == 'PAID':
             logger.info(f"Processing payment confirmation for pill {pill.pill_number}")
             
-            # Update pill payment status
-            old_paid_status = pill.paid
             old_status = pill.status
-            
-            pill.paid = True
             pill.status = 'p'
             
             # Update EasyPay data with webhook information 
@@ -142,10 +138,9 @@ def handle_easypay_webhook_post(request, api_key):
             easypay_payload['webhook_data'] = webhook_data
             pill.easypay_data = easypay_payload
             
-            pill.save(update_fields=['paid', 'status', 'easypay_data'])
+            pill.save(update_fields=['status', 'easypay_data'])
             
             logger.info(f"✓ Updated pill {pill.pill_number}:")
-            logger.info(f"  - Paid: {old_paid_status} → {pill.paid}")
             logger.info(f"  - Status: {old_status} → {pill.status}")
             logger.info(f"  - Amount: {amount}")
             

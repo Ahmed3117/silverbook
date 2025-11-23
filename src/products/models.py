@@ -448,15 +448,6 @@ class Pill(models.Model):
             'problem_items_count': 0
         }
 
-    @property
-    def paid(self):
-        return self.status == 'p'
-
-    @paid.setter
-    def paid(self, value):
-        if value:
-            self.status = 'p'
-
     def grant_purchased_books(self):
         from .models import PurchasedBook
 

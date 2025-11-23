@@ -3,6 +3,7 @@ from rest_framework import serializers
 from rest_framework.fields import ImageField
 
 from .models import User, UserProfileImage
+from products.models import Pill, PillItem, Product
 from django.db.models import Count, Sum, Case, When, Value, FloatField
 from django.db.models.functions import Coalesce
 
@@ -103,3 +104,71 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
 class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(required=True, write_only=True)
     new_password = serializers.CharField(required=True, write_only=True, min_length=8)
+
+
+class UserOrderItemSerializer(serializers.ModelSerializer):
+    product_id = serializers.IntegerField(source='product.id', read_only=True)
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    product_number = serializers.CharField(source='product.product_number', read_only=True)
+    teacher_name = serializers.CharField(source='product.teacher.name', read_only=True)
+    product_image = serializers.SerializerMethodField()
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+
+    class Meta:
+        model = PillItem
+        fields = [
+            'id', 'status', 'status_display', 'price_at_sale', 'date_added',
+            'product_id', 'product_name', 'product_number', 'teacher_name',
+            'product_image'
+        ]
+
+    def get_product_image(self, obj):
+        product = getattr(obj, 'product', None)
+        if not product:
+            return None
+
+        image = product.base_image or product.main_image()
+        if not image or not hasattr(image, 'url'):
+            return None
+
+        request = self.context.get('request')
+        url = image.url
+        if request is not None:
+            return request.build_absolute_uri(url)
+        return url
+
+
+class UserOrderSerializer(serializers.ModelSerializer):
+    items = serializers.SerializerMethodField()
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    subtotal = serializers.SerializerMethodField()
+    final_total = serializers.SerializerMethodField()
+    coupon_code = serializers.SerializerMethodField()
+    items_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Pill
+        fields = [
+            'id', 'pill_number', 'status', 'status_display', 'payment_gateway',
+            'coupon_discount', 'coupon_code', 'items_count', 'subtotal',
+            'final_total', 'date_added', 'items'
+        ]
+
+    def get_items(self, obj):
+        items = obj.items.all()
+        return UserOrderItemSerializer(items, many=True, context=self.context).data
+
+    def get_subtotal(self, obj):
+        return float(obj.items_subtotal())
+
+    def get_final_total(self, obj):
+        return float(obj.final_price())
+
+    def get_coupon_code(self, obj):
+        coupon = getattr(obj, 'coupon', None)
+        if coupon:
+            return coupon.coupon
+        return None
+
+    def get_items_count(self, obj):
+        return obj.items.count()

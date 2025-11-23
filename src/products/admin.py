@@ -475,7 +475,7 @@ class PillAdmin(admin.ModelAdmin):
                         getattr(pill, 'created_at', None) or getattr(pill, 'date_added', None),  # Created Date
                         pill.user.id,  # User ID
                         pill.user.email,  # User Email
-                        'Paid' if pill.paid else 'Unpaid',  # Payment Status
+                        'Paid' if pill.status == 'p' else 'Unpaid',  # Payment Status
                         'Has Order' if pill.has_khazenly_order else 'Pending',  # Khazenly Status
                         len(line_items),  # Line Items Count
                         line_items_json_str  # lineItems JSON

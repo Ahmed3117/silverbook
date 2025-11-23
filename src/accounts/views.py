@@ -11,7 +11,18 @@ from django.core.mail import send_mail
 from django.utils import timezone
 from datetime import timedelta
 import random
-from .serializers import ChangePasswordSerializer, UserProfileImageCreateSerializer, UserProfileImageSerializer, UserSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer
+from accounts.pagination import CustomPageNumberPagination
+from products.models import Pill, PillItem
+from django.db.models import Prefetch
+from .serializers import (
+    ChangePasswordSerializer,
+    UserProfileImageCreateSerializer,
+    UserProfileImageSerializer,
+    UserSerializer,
+    PasswordResetRequestSerializer,
+    PasswordResetConfirmSerializer,
+    UserOrderSerializer
+)
 from .models import User, UserProfileImage
 from django.contrib.auth import update_session_auth_hash
 from rest_framework import generics
@@ -143,6 +154,25 @@ class GetUserData(generics.RetrieveAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+class UserOrdersView(generics.ListAPIView):
+    serializer_class = UserOrderSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = CustomPageNumberPagination
+
+    def get_queryset(self):
+        return (
+            Pill.objects.filter(user=self.request.user)
+            .select_related('coupon')
+            .prefetch_related(
+                Prefetch(
+                    'items',
+                    queryset=PillItem.objects.select_related('product', 'product__teacher')
+                )
+            )
+            .order_by('-date_added')
+        )
 
 
 class DeleteAccountView(APIView):
