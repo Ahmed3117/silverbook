@@ -117,7 +117,7 @@ def handle_shakeout_webhook_post(request):
             'pill_id': pill.id,
             'pill_number': pill.pill_number,
             'payment_updated': payment_updated,
-            'current_paid_status': pill.paid,
+            'current_status': pill.status,
             'shakeout_status': invoice_status
         }
         
@@ -158,30 +158,24 @@ def update_pill_payment_status(pill, shakeout_status, webhook_data):
     Update pill payment status based on Shake-out invoice status
     """
     try:
-        old_paid_status = pill.paid
-        new_paid_status = old_paid_status  # Default: no change
+        old_status = pill.status
+        new_status = old_status
         
         # Map Shake-out statuses to our payment statuses
         if shakeout_status in ["paid"]:
-            new_paid_status = True
-            # Also set pill status to paid
-            pill.status = 'p'
-        elif shakeout_status in ["failed", "cancelled", "expired"]:
-            new_paid_status = False
-            # Keep current pill status or set to initiated
-            if pill.status == 'p':
-                pill.status = 'i'  # Reset to initiated if was paid
+            new_status = 'p'
+        elif shakeout_status in ["failed", "cancelled", "expired"] and pill.status == 'p':
+            new_status = 'i'
         # For "pending" status, we don't change the payment status
         
-        # Update payment status if changed
-        if new_paid_status != old_paid_status:
-            pill.paid = new_paid_status
-            pill.save()
+        if new_status != old_status:
+            pill.status = new_status
+            pill.save(update_fields=['status'])
             
-            logger.info(f"Updated Pill #{pill.pill_number} payment status from {old_paid_status} to {new_paid_status}")
+            logger.info(f"Updated Pill #{pill.pill_number} status from {old_status} to {new_status}")
             return True
         else:
-            logger.info(f"No payment status change needed for Pill #{pill.pill_number} (current: {old_paid_status})")
+            logger.info(f"No status change needed for Pill #{pill.pill_number} (current: {old_status})")
             return False
             
     except Exception as e:

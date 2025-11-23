@@ -11,6 +11,7 @@ urlpatterns = [
     path('password-reset/confirm/', views.reset_password_confirm, name='password_reset_confirm'),
     path('update-user-data/', views.UpdateUserData.as_view(), name='update-user-data'),
     path('get-user-data/', views.GetUserData.as_view(), name='get-user-data'),
+    path('orders/', views.UserOrdersView.as_view(), name='user-orders'),
     path('delete-account/', views.DeleteAccountView.as_view(), name='delete-account'),
     path('change-password/', views.change_password, name='change_password'),
     #-----------------Admin--------------------------#

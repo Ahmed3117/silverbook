@@ -314,8 +314,9 @@ class FawaterakPaymentService:
             
             # Update pill payment status
             if payment_status in fawry_success_indicators or fawry_pending_but_paid:
-                pill.paid = True
-                pill.save()
+                if pill.status != 'p':
+                    pill.status = 'p'
+                    pill.save(update_fields=['status'])
                 
                 logger.info(f"✓ Payment confirmed for pill {pill.pill_number} (Status: {payment_status}, Method: {payment_method})")
                 
