@@ -80,7 +80,7 @@ def get_customer_profile(pill) -> Dict[str, str]:
         full_name = getattr(user, "name", None) or getattr(user, "username", DEFAULT_NAME)
 
     if not phone:
-        phone = getattr(user, "phone", None) or getattr(user, "phone2", None) or getattr(user, "parent_phone", None)
+        phone = getattr(user, "parent_phone", None)
 
     if not email:
         user_email = getattr(user, "email", None)

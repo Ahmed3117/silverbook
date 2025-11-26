@@ -255,10 +255,10 @@ DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 """
 
 
-ACTIVE_SITE_NAME = os.getenv('ACTIVE_SITE_NAME', 'silverbook')
 
 # ^ < ==========================Payment CONFIG========================== >
 
+ACTIVE_SITE_NAME = os.getenv('ACTIVE_SITE_NAME', 'silverbook')
 
 # Payment Gateway Configuration
 ACTIVE_PAYMENT_METHOD = os.getenv('ACTIVE_PAYMENT_METHOD', 'easypay').lower()  # 'shakeout' or 'easypay'
@@ -267,9 +267,6 @@ ACTIVE_PAYMENT_METHOD = os.getenv('ACTIVE_PAYMENT_METHOD', 'easypay').lower()  #
 SITE_URL = os.getenv('SITE_URL', 'https://silverbook.easy-stream.net')
 
 # Shake-out Configuration - with fallbacks and validation
-SUCCESS_URL = os.getenv('SUCCESS_URL', 'http://bookefay.com/payment-redirect/success/')
-FAIL_URL = os.getenv('FAIL_URL', 'http://bookefay.com/payment-redirect/fail/')
-PENDING_URL = os.getenv('PENDING_URL', 'http://bookefay.com/payment-redirect/pending') 
 SHAKEOUT_API_KEY = os.getenv('SHAKEOUT_API_KEY', '')
 SHAKEOUT_SECRET_KEY = os.getenv('SHAKEOUT_SECRET_KEY', '')
 SHAKEOUT_BASE_URL = os.getenv('SHAKEOUT_BASE_URL', 'https://dash.shake-out.com/api/public/vendor')
@@ -283,27 +280,10 @@ EASYPAY_WEBHOOK_URL = os.getenv('EASYPAY_WEBHOOK_URL', f'{SITE_URL}/api/webhook/
 EASYPAY_PAYMENT_METHOD = os.getenv('EASYPAY_PAYMENT_METHOD', 'fawry')  # Default payment method
 EASYPAY_PAYMENT_EXPIRY = int(os.getenv('EASYPAY_PAYMENT_EXPIRY', '172800000'))  # 48 hours in milliseconds
 
-# API Key for webhook authentication (same as used in e-learning system)
-API_KEY_MANASA = os.getenv('API_KEY_MANASA', 'your-secure-api-key-here')
 
-PILL_STATUS_URL = os.getenv('PILL_STATUS_URL', 'http://bookefay.com/profile/orders')
+PILL_STATUS_URL = os.getenv('PILL_STATUS_URL', '')
 
 
-# Validate critical settings
-if not SHAKEOUT_API_KEY:
-    import warnings
-    warnings.warn("SHAKEOUT_API_KEY is not set in environment variables!")
 
-if not EASYPAY_VENDOR_CODE:
-    import warnings
-    warnings.warn("EASYPAY_VENDOR_CODE is not set in environment variables!")
-
-print(f"🔧 Active Payment Method: {ACTIVE_PAYMENT_METHOD}")
-print(f"🔧 Shake-out API Key loaded: {SHAKEOUT_API_KEY[:10] if SHAKEOUT_API_KEY else 'NOT SET'}...")
-print(f"🔧 Shake-out Base URL: {SHAKEOUT_BASE_URL}")
-print(f"🔧 EasyPay Vendor Code: {EASYPAY_VENDOR_CODE[:10] if EASYPAY_VENDOR_CODE else 'NOT SET'}...")
-print(f"🔧 EasyPay Base URL: {EASYPAY_BASE_URL}")
-print(f"🔧 Site URL: {SITE_URL}")
-print(f"🔧 PILL_STATUS_URL : {SUCCESS_URL}")
 
 

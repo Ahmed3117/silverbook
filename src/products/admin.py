@@ -388,16 +388,14 @@ class PillAdmin(admin.ModelAdmin):
                     elif address.city:
                         city_name = address.city[:80] if len(address.city) > 80 else address.city
                     
-                    # Prepare phone numbers
+                    # Prepare phone numbers from address only (user.phone removed)
                     phone_numbers = []
-                    if pill.user.phone:
-                        phone_numbers.append(pill.user.phone)
                     if address.phone:
                         phone_numbers.append(address.phone)
                     
                     unique_phones = list(dict.fromkeys(phone_numbers))
-                    primary_tel = address.phone if address.phone else (unique_phones[0] if unique_phones else "")
-                    secondary_phones = [phone for phone in unique_phones if phone != primary_tel]
+                    primary_tel = unique_phones[0] if unique_phones else ""
+                    secondary_phones = [phone for phone in unique_phones[1:] if phone]
                     secondary_tel = " | ".join(secondary_phones) if secondary_phones else ""
                     
                     # Calculate amounts

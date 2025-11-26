@@ -235,6 +235,9 @@ class Product(models.Model):
         return self.name
 
     def save(self, *args, **kwargs):
+        # Validate unique product name per subject, teacher, and year
+        self.validate_unique_product_name()
+        
         # Save first to get the ID if this is a new product
         is_new = not self.pk
         super().save(*args, **kwargs)
@@ -244,6 +247,35 @@ class Product(models.Model):
             self.product_number = f"{settings.ACTIVE_SITE_NAME}-{self.id}"
             # Update only the product_number field to avoid infinite recursion
             Product.objects.filter(pk=self.pk).update(product_number=self.product_number)
+    
+    def validate_unique_product_name(self):
+        """Ensure product name is unique per subject, teacher, and year combination"""
+        from django.core.exceptions import ValidationError
+        
+        # Build the query to check for duplicates
+        query = Product.objects.filter(
+            name=self.name,
+            subject=self.subject,
+            teacher=self.teacher,
+            year=self.year
+        )
+        
+        # Exclude current instance if updating
+        if self.pk:
+            query = query.exclude(pk=self.pk)
+        
+        # Check if duplicate exists
+        if query.exists():
+            error_parts = []
+            if self.subject:
+                error_parts.append(f"subject '{self.subject.name}'")
+            if self.teacher:
+                error_parts.append(f"teacher '{self.teacher.name}'")
+            if self.year:
+                error_parts.append(f"year '{self.get_year_display()}'")
+            
+            error_msg = f"A product with name '{self.name}' already exists for {', '.join(error_parts) if error_parts else 'this combination'}."
+            raise ValidationError({'name': error_msg})
 
     class Meta:
         ordering = ['-date_added']
@@ -417,7 +449,15 @@ class Pill(models.Model):
                     item.price_at_sale = item.product.discounted_price()
                 item.save()
 
+        # When pill status becomes 'p', update all pill items to 'p' as well
         if self.status == 'p' and (is_new or previous_status != 'p'):
+            for item in self.items.all():
+                item.status = 'p'
+                if not item.date_sold:
+                    item.date_sold = timezone.now()
+                if not item.price_at_sale:
+                    item.price_at_sale = item.product.discounted_price()
+                item.save(update_fields=['status', 'date_sold', 'price_at_sale'])
             self.grant_purchased_books()
 
     def items_subtotal(self):
@@ -468,10 +508,10 @@ class Pill(models.Model):
             )
 
     def send_payment_notification(self):
-        """Notify the user that payment succeeded. Currently sends WhatsApp if phone exists."""
-        phone = getattr(self.user, 'phone', None) or getattr(self.user, 'parent_phone', None)
+        """Notify the user that payment succeeded. Currently sends WhatsApp if parent_phone exists."""
+        phone = getattr(self.user, 'parent_phone', None)
         if not phone:
-            logger.info("No phone on file for user %s; skipping payment notification.", self.user_id)
+            logger.info("No parent_phone on file for user %s; skipping payment notification.", self.user_id)
             return
 
         try:
