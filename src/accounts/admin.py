@@ -5,13 +5,13 @@ from .models import User, UserProfileImage
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    list_display = ('username', 'name', 'email', 'phone', 'user_type', 'is_staff', 'get_profile_image_preview')
+    list_display = ('username', 'name', 'email', 'user_type', 'is_staff', 'get_profile_image_preview')
     list_filter = ('user_type', 'is_staff', 'is_superuser', 'is_active', 'groups', 'government', 'year')
-    search_fields = ('username', 'name', 'email', 'phone')
+    search_fields = ('username', 'name', 'email')
     ordering = ('-date_joined',)
     fieldsets = (
         (None, {'fields': ('username', 'password')}),
-        ('Personal info', {'fields': ('name', 'email', 'phone', 'phone2', 'user_profile_image')}),
+        ('Personal info', {'fields': ('name', 'email', 'user_profile_image')}),
         ('User Type Specifics', {'fields': ('user_type', 'year', 'parent_phone', 'division')}),
         ('Location', {'fields': ('government',)}),
         ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),

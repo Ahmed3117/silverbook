@@ -196,6 +196,41 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def get_average_rating(self, obj):
         return obj.average_rating()
+    
+    def validate(self, data):
+        """Validate that product name is unique per subject, teacher, and year"""
+        name = data.get('name')
+        subject = data.get('subject')
+        teacher = data.get('teacher')
+        year = data.get('year')
+        
+        # Build query to check for duplicates
+        query = Product.objects.filter(
+            name=name,
+            subject=subject,
+            teacher=teacher,
+            year=year
+        )
+        
+        # Exclude current instance if updating
+        if self.instance:
+            query = query.exclude(pk=self.instance.pk)
+        
+        # Check if duplicate exists
+        if query.exists():
+            error_parts = []
+            if subject:
+                error_parts.append(f"subject '{subject.name}'")
+            if teacher:
+                error_parts.append(f"teacher '{teacher.name}'")
+            if year:
+                year_display = dict(Product._meta.get_field('year').choices).get(year, year)
+                error_parts.append(f"year '{year_display}'")
+            
+            error_msg = f"A product with name '{name}' already exists for {', '.join(error_parts) if error_parts else 'this combination'}."
+            raise serializers.ValidationError({'name': error_msg})
+        
+        return data
 
 class ProductBreifedSerializer(serializers.ModelSerializer):
     class Meta:

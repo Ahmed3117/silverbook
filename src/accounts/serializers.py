@@ -33,7 +33,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = (
             'id', 'username', 'email', 'password', 'name','government',
-            'is_staff', 'is_superuser', 'user_type', 'phone','phone2','parent_phone',
+            'is_staff', 'is_superuser', 'user_type', 'parent_phone',
             'year', 'division', 'user_profile_image',
             'user_profile_image_id','created_at'
         )
@@ -42,13 +42,56 @@ class UserSerializer(serializers.ModelSerializer):
             'is_superuser': {'read_only': True},
             'email': {'required': False, 'allow_null': True, 'allow_blank': True},
             'user_type': {'required': False, 'allow_null': True},
-            'phone': {'required': False, 'allow_null': True, 'allow_blank': True},
-            'phone2': {'required': False, 'allow_null': True, 'allow_blank': True},
             'parent_phone': {'required': False, 'allow_null': True, 'allow_blank': True},
             'year': {'required': False, 'allow_null': True},
             'division': {'required': False, 'allow_null': True},
             'password': {'required': False},  # Make password optional for updates
         }
+    
+    def validate_username(self, value):
+        """Validate that username is a valid Egyptian phone number for students only"""
+        # Skip validation during updates if user_type is not being changed
+        # We'll validate in the validate() method where we have access to all fields
+        return value.strip()
+    
+    def validate(self, data):
+        """Validate username format based on user_type and teacher name uniqueness"""
+        import re
+        
+        username = data.get('username')
+        user_type = data.get('user_type')
+        name = data.get('name')
+        
+        # For updates, get the current user_type if not provided
+        if self.instance and not user_type:
+            user_type = self.instance.user_type
+        
+        # Only validate phone format for students
+        if user_type == 'student' and username:
+            # Check if it matches Egyptian phone pattern (starts with 01 and has 11 digits)
+            if not re.match(r'^01[0-2,5]{1}[0-9]{8}$', username):
+                raise serializers.ValidationError({
+                    'username': 'For students, username must be a valid Egyptian phone number (e.g., 01012345678)'
+                })
+        
+        # Validate unique teacher names
+        if user_type == 'teacher' and name:
+            query = User.objects.filter(
+                user_type='teacher',
+                name=name
+            )
+            
+            # Exclude current instance if updating
+            if self.instance:
+                query = query.exclude(pk=self.instance.pk)
+            
+            # Check if duplicate exists
+            if query.exists():
+                raise serializers.ValidationError({
+                    'name': f"A teacher with the name '{name}' already exists. Teacher names must be unique."
+                })
+        
+        return data
     
     def update(self, instance, validated_data):
         """
@@ -82,8 +125,6 @@ class UserSerializer(serializers.ModelSerializer):
             is_staff=validated_data.get('is_staff', False),
             is_superuser=validated_data.get('is_superuser', False),
             user_type=validated_data.get('user_type', None),
-            phone=validated_data.get('phone', None),
-            phone2=validated_data.get('phone2', None),
             parent_phone=validated_data.get('parent_phone', None),
             year=validated_data.get('year', None),
             division=validated_data.get('division', None),
@@ -94,12 +135,58 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class PasswordResetRequestSerializer(serializers.Serializer):
-    phone = serializers.CharField()  # Changed from email to phone
+    username = serializers.CharField()
+    
+    def validate_username(self, value):
+        """Validate that username exists and is a valid phone number for students"""
+        import re
+        from .models import User
+        
+        # Remove any whitespace
+        value = value.strip()
+        
+        # Check if user exists
+        try:
+            user = User.objects.get(username=value)
+            # Only validate phone format for students
+            if user.user_type == 'student':
+                if not re.match(r'^01[0-2,5]{1}[0-9]{8}$', value):
+                    raise serializers.ValidationError(
+                        'For students, username must be a valid Egyptian phone number (e.g., 01012345678)'
+                    )
+        except User.DoesNotExist:
+            # Don't reveal whether user exists or not for security
+            pass
+        
+        return value
 
 class PasswordResetConfirmSerializer(serializers.Serializer):
-    phone = serializers.CharField() 
+    username = serializers.CharField()
     otp = serializers.CharField()
     new_password = serializers.CharField()
+    
+    def validate_username(self, value):
+        """Validate that username is a valid phone number for students"""
+        import re
+        from .models import User
+        
+        # Remove any whitespace
+        value = value.strip()
+        
+        # Check if user exists
+        try:
+            user = User.objects.get(username=value)
+            # Only validate phone format for students
+            if user.user_type == 'student':
+                if not re.match(r'^01[0-2,5]{1}[0-9]{8}$', value):
+                    raise serializers.ValidationError(
+                        'For students, username must be a valid Egyptian phone number (e.g., 01012345678)'
+                    )
+        except User.DoesNotExist:
+            # Don't reveal whether user exists or not for security
+            pass
+        
+        return value
 
 class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(required=True, write_only=True)

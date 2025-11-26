@@ -77,9 +77,9 @@ def signin(request):
 def request_password_reset(request):
     serializer = PasswordResetRequestSerializer(data=request.data)
     if serializer.is_valid():
-        phone = serializer.validated_data['phone']
+        username = serializer.validated_data['username']
         try:
-            user = User.objects.filter(phone=phone).first()
+            user = User.objects.filter(username=username).first()
             if not user:
                 return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
             
@@ -89,7 +89,8 @@ def request_password_reset(request):
             user.save()
             
             message = f'Your PIN code is {otp}'
-            sms_response = send_beon_sms(phone_numbers=phone, message=message)
+            # Send OTP to username (which is a phone number)
+            sms_response = send_beon_sms(phone_numbers=username, message=message)
 
             if sms_response.get('success'):
                 return Response({'message': 'OTP sent to your phone via SMS'})
@@ -108,14 +109,14 @@ def request_password_reset(request):
 def reset_password_confirm(request):
     serializer = PasswordResetConfirmSerializer(data=request.data)
     if serializer.is_valid():
-        phone = serializer.validated_data['phone']
+        username = serializer.validated_data['username']
         otp = serializer.validated_data['otp']
         new_password = serializer.validated_data['new_password']
         
         try:
-            user = User.objects.filter(phone=phone, otp=otp).first()
+            user = User.objects.filter(username=username, otp=otp).first()
             if not user:
-                return Response({'error': 'Invalid OTP or phone number'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'error': 'Invalid OTP or username'}, status=status.HTTP_400_BAD_REQUEST)
             
             if user.otp_created_at < timezone.now() - timedelta(minutes=10):
                 return Response({'error': 'OTP expired'}, status=status.HTTP_400_BAD_REQUEST)
@@ -143,6 +144,15 @@ class UpdateUserData(generics.UpdateAPIView):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
+        
+        # Prevent students from changing their username
+        if instance.user_type == 'student' and 'username' in request.data:
+            if request.data['username'] != instance.username:
+                return Response(
+                    {'username': ['Students cannot change their username']},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
@@ -311,7 +321,7 @@ class AdminUserListView(generics.ListAPIView):
     
     filter_backends = [SearchFilter, OrderingFilter,DjangoFilterBackend]
     ordering_fields = ['created_at']
-    search_fields = ['username', 'name', 'email', 'phone', 'government']
+    search_fields = ['username', 'name', 'email', 'government']
     filterset_fields = ['is_staff', 'is_superuser','year', 'division', 'government']
 
 

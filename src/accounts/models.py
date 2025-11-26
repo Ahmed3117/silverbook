@@ -34,6 +34,7 @@ GOVERNMENT_CHOICES = [
 USER_TYPE_CHOICES = [
         ('student', 'Student'),
         ('parent', 'Parent'),
+        ('teacher', 'Teacher'),
         ('store', 'Store'),
     ]
     
@@ -70,8 +71,6 @@ class User(AbstractUser):
     otp_created_at = models.DateTimeField(null=True, blank=True)
     email = models.EmailField(blank=True, null=True, max_length=254)
     user_type = models.CharField(max_length=20, choices=USER_TYPE_CHOICES, default="student", null=True, blank=True)
-    phone = models.CharField(max_length=20, null=True, blank=True)
-    phone2 = models.CharField(max_length=20, null=True, blank=True)
     parent_phone = models.CharField(max_length=20, null=True, blank=True, help_text="Only applicable for students")
     year = models.CharField(
         max_length=20,
@@ -98,6 +97,32 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.name if self.name else self.username
+    
+    def save(self, *args, **kwargs):
+        """Validate unique name for teachers before saving"""
+        self.validate_teacher_name_unique()
+        super().save(*args, **kwargs)
+    
+    def validate_teacher_name_unique(self):
+        """Ensure teacher names are unique among users with user_type='teacher'"""
+        from django.core.exceptions import ValidationError
+        
+        if self.user_type == 'teacher':
+            # Build query to check for duplicate teacher names
+            query = User.objects.filter(
+                user_type='teacher',
+                name=self.name
+            )
+            
+            # Exclude current instance if updating
+            if self.pk:
+                query = query.exclude(pk=self.pk)
+            
+            # Check if duplicate exists
+            if query.exists():
+                raise ValidationError({
+                    'name': f"A teacher with the name '{self.name}' already exists. Teacher names must be unique."
+                })
     
     class Meta:
         ordering = ['-created_at']
