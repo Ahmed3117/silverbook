@@ -19,12 +19,13 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.views import APIView
 from .serializers import *
-from .filters import CategoryFilter, CouponDiscountFilter, PillFilter, ProductFilter
+from .filters import CategoryFilter, CouponDiscountFilter, PillFilter, ProductFilter, PurchasedBookFilter
 from .models import (
     Category, CouponDiscount,
     ProductImage, Rating, SubCategory, Product, Pill,
     PurchasedBook, PillItem
 )
+from accounts.models import User
 from .permissions import IsOwner, IsOwnerOrReadOnly
 
 class CategoryListView(generics.ListAPIView):
@@ -976,7 +977,7 @@ class PillListCreateView(generics.ListCreateAPIView):
     serializer_class = PillCreateSerializer
     filter_backends = [DjangoFilterBackend, rest_filters.SearchFilter]
     filterset_class = PillFilter
-    search_fields = ['user__name', 'user__username', 'pill_number','user__phone','user__parent_phone','shakeout_invoice_id', 'shakeout_invoice_ref', 'easypay_invoice_uid', 'easypay_invoice_sequence' , 'easypay_fawry_ref']
+    search_fields = ['user__name', 'user__username', 'pill_number', 'user__parent_phone', 'shakeout_invoice_id', 'shakeout_invoice_ref', 'easypay_invoice_uid', 'easypay_invoice_sequence', 'easypay_fawry_ref']
     pagination_class = CustomPageNumberPagination
     # permission_classes = [IsAdminOrHasEndpointPermission]
 
@@ -1125,6 +1126,302 @@ def create_shakeout_invoice_view(request, pill_id):
             'success': False,
             'error': str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class AddBooksToStudentView(APIView):
+    """
+    Dashboard endpoint to add a list of books directly to a student
+    POST /products/add-books-to-student/
+    
+    Request body:
+    {
+        "user_id": 1,
+        "product_ids": [1, 2, 3, 4]
+    }
+    """
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    
+    def post(self, request):
+        user_id = request.data.get('user_id')
+        product_ids = request.data.get('product_ids', [])
+        
+        # Validate input
+        if not user_id:
+            return Response({
+                'success': False,
+                'error': 'user_id is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not product_ids or not isinstance(product_ids, list):
+            return Response({
+                'success': False,
+                'error': 'product_ids must be a non-empty list'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Get the user
+            user = User.objects.get(id=user_id)
+            
+            # Validate all products exist
+            products = Product.objects.filter(id__in=product_ids)
+            if products.count() != len(product_ids):
+                found_ids = list(products.values_list('id', flat=True))
+                missing_ids = [pid for pid in product_ids if pid not in found_ids]
+                return Response({
+                    'success': False,
+                    'error': f'Products not found: {missing_ids}'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Use transaction to ensure atomicity
+            with transaction.atomic():
+                # Create a special pill for admin-added books
+                pill = Pill.objects.create(
+                    user=user,
+                    status='p',  # Mark as paid immediately
+                )
+                
+                added_books = []
+                skipped_books = []
+                
+                for product in products:
+                    # Check if user already has this book
+                    existing_purchase = PurchasedBook.objects.filter(
+                        user=user,
+                        product=product
+                    ).first()
+                    
+                    if existing_purchase:
+                        skipped_books.append({
+                            'id': product.id,
+                            'name': product.name,
+                            'reason': 'Already purchased'
+                        })
+                        continue
+                    
+                    # Create PillItem
+                    pill_item = PillItem.objects.create(
+                        pill=pill,
+                        user=user,
+                        product=product,
+                        status='p',
+                        price_at_sale=0.0,  # Free for admin-added books
+                        date_sold=timezone.now()
+                    )
+                    
+                    # Add to pill items
+                    pill.items.add(pill_item)
+                    
+                    # Create PurchasedBook
+                    purchased_book = PurchasedBook.objects.create(
+                        user=user,
+                        pill=pill,
+                        product=product,
+                        pill_item=pill_item,
+                        product_name=product.name
+                    )
+                    
+                    added_books.append({
+                        'id': product.id,
+                        'name': product.name,
+                        'purchased_at': purchased_book.created_at
+                    })
+                
+                return Response({
+                    'success': True,
+                    'message': f'Successfully added {len(added_books)} book(s) to student',
+                    'data': {
+                        'user': {
+                            'id': user.id,
+                            'name': user.name,
+                            'username': user.username
+                        },
+                        'pill_number': pill.pill_number,
+                        'added_books': added_books,
+                        'skipped_books': skipped_books,
+                        'total_added': len(added_books),
+                        'total_skipped': len(skipped_books)
+                    }
+                }, status=status.HTTP_201_CREATED)
+                
+        except User.DoesNotExist:
+            return Response({
+                'success': False,
+                'error': f'User with id {user_id} not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Error adding books to student: {str(e)}")
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class AdminPurchasedBookListCreateView(generics.ListCreateAPIView):
+    """
+    Admin endpoint to list and create purchased books
+    GET /products/dashboard/purchased-books/
+    POST /products/dashboard/purchased-books/
+    
+    POST body format:
+    {
+        "user": 1,
+        "products": [5, 10, 15],  // Required - list of product IDs
+        "pill": 10,  // Optional
+        "pill_item": 20  // Optional
+    }
+    
+    Filters: user, product, pill, user_id, product_id, pill_id, start_date, end_date, 
+             product_name, username, user_name
+    Search: product_name, user__username, user__name
+    """
+    queryset = PurchasedBook.objects.all().select_related(
+        'user', 'product', 'pill', 'pill_item',
+        'product__category', 'product__sub_category', 
+        'product__subject', 'product__teacher'
+    )
+    serializer_class = PurchasedBookSerializer
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    filter_backends = [DjangoFilterBackend, rest_filters.SearchFilter, OrderingFilter]
+    filterset_class = PurchasedBookFilter
+    search_fields = ['product_name', 'user__username', 'user__name', 'product__name']
+    ordering_fields = ['created_at', 'product_name', 'user__username']
+    ordering = ['-created_at']
+    pagination_class = CustomPageNumberPagination
+    
+    def create(self, request, *args, **kwargs):
+        user_id = request.data.get('user')
+        products = request.data.get('products')
+        pill_id = request.data.get('pill')
+        pill_item_id = request.data.get('pill_item')
+        
+        # Validate required fields
+        if not user_id:
+            return Response({
+                'success': False,
+                'error': 'user is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not products:
+            return Response({
+                'success': False,
+                'error': 'products is required and must be a list'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not isinstance(products, list):
+            return Response({
+                'success': False,
+                'error': 'products must be a list of product IDs'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if len(products) == 0:
+            return Response({
+                'success': False,
+                'error': 'products list cannot be empty'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Validate user exists
+            user = User.objects.get(id=user_id)
+            
+            # Validate pill if provided
+            pill = None
+            if pill_id:
+                pill = Pill.objects.get(id=pill_id)
+            
+            # Validate pill_item if provided
+            pill_item = None
+            if pill_item_id:
+                pill_item = PillItem.objects.get(id=pill_item_id)
+            
+            # Validate all products exist
+            product_objs = Product.objects.filter(id__in=products)
+            if product_objs.count() != len(products):
+                found_ids = list(product_objs.values_list('id', flat=True))
+                missing_ids = [pid for pid in products if pid not in found_ids]
+                return Response({
+                    'success': False,
+                    'error': f'Products not found: {missing_ids}'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Create purchased books
+            created_books = []
+            skipped_books = []
+            
+            with transaction.atomic():
+                for product in product_objs:
+                    # Check if already exists
+                    existing = PurchasedBook.objects.filter(
+                        user=user,
+                        product=product
+                    ).first()
+                    
+                    if existing:
+                        skipped_books.append({
+                            'id': product.id,
+                            'name': product.name,
+                            'reason': 'Already exists'
+                        })
+                        continue
+                    
+                    # Create purchased book
+                    purchased_book = PurchasedBook.objects.create(
+                        user=user,
+                        product=product,
+                        pill=pill,
+                        pill_item=pill_item
+                    )
+                    
+                    created_books.append(
+                        PurchasedBookSerializer(purchased_book, context={'request': request}).data
+                    )
+            
+            return Response({
+                'success': True,
+                'message': f'Successfully created {len(created_books)} purchased book(s)',
+                'data': {
+                    'created_books': created_books,
+                    'skipped_books': skipped_books,
+                    'total_created': len(created_books),
+                    'total_skipped': len(skipped_books)
+                }
+            }, status=status.HTTP_201_CREATED)
+            
+        except User.DoesNotExist:
+            return Response({
+                'success': False,
+                'error': f'User with id {user_id} not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Pill.DoesNotExist:
+            return Response({
+                'success': False,
+                'error': f'Pill with id {pill_id} not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except PillItem.DoesNotExist:
+            return Response({
+                'success': False,
+                'error': f'PillItem with id {pill_item_id} not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Error creating purchased books: {str(e)}")
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class AdminPurchasedBookRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    Admin endpoint to retrieve, update, or delete a purchased book
+    GET /products/dashboard/purchased-books/<id>/
+    PUT /products/dashboard/purchased-books/<id>/
+    PATCH /products/dashboard/purchased-books/<id>/
+    DELETE /products/dashboard/purchased-books/<id>/
+    """
+    queryset = PurchasedBook.objects.all().select_related(
+        'user', 'product', 'pill', 'pill_item'
+    )
+    serializer_class = PurchasedBookSerializer
+    permission_classes = [IsAuthenticated, IsAdminUser]
 
 
 

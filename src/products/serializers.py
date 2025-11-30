@@ -383,8 +383,7 @@ class AdminPillItemSerializer(PillItemCreateUpdateSerializer):
         return {
             'id': user.id,
             'name': user.name,
-            'email': user.email,
-            'phone': user.phone
+            'email': user.email
         }
 
     def get_product_details(self, obj):
@@ -487,7 +486,6 @@ class PillCreateSerializer(serializers.ModelSerializer):
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
     user_name = serializers.SerializerMethodField()
     user_username = serializers.SerializerMethodField()
-    user_phone = serializers.SerializerMethodField()
     user_parent_phone = serializers.SerializerMethodField()
     _items_details = PillItemSerializer(source='items', many=True, read_only=True)
 
@@ -498,7 +496,6 @@ class PillCreateSerializer(serializers.ModelSerializer):
             'user',
             'user_name',
             'user_username',
-            'user_phone',
             'user_parent_phone',
             'items',
             '_items_details',
@@ -509,7 +506,6 @@ class PillCreateSerializer(serializers.ModelSerializer):
             'id',
             'user_name',
             'user_username',
-            'user_phone',
             'user_parent_phone',
             '_items_details',
             'status',
@@ -521,9 +517,6 @@ class PillCreateSerializer(serializers.ModelSerializer):
 
     def get_user_username(self, obj):
         return obj.user.username
-
-    def get_user_phone(self, obj):
-        return obj.user.phone if obj.user else None
 
     def get_user_parent_phone(self, obj):
         return obj.user.parent_phone if obj.user else None
@@ -622,7 +615,6 @@ class PillDetailSerializer(serializers.ModelSerializer):
     status_display = serializers.SerializerMethodField()
     user_name = serializers.SerializerMethodField()
     user_username = serializers.SerializerMethodField()
-    user_phone = serializers.SerializerMethodField()
     user_parent_phone = serializers.SerializerMethodField()
     final_price = serializers.SerializerMethodField()
     payment_url = serializers.SerializerMethodField()
@@ -631,7 +623,7 @@ class PillDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pill
         fields = [
-            'id','pill_number', 'user_name', 'user_username', 'user_phone','user_parent_phone' ,'items', 'status', 
+            'id','pill_number', 'user_name', 'user_username', 'user_parent_phone' ,'items', 'status', 
             'status_display', 'date_added', 'coupon', 'final_price', 'shakeout_invoice_id', 
             'easypay_invoice_uid','easypay_fawry_ref', 'easypay_invoice_sequence', 'payment_gateway', 'payment_url', 'payment_status'
         ]
@@ -646,9 +638,6 @@ class PillDetailSerializer(serializers.ModelSerializer):
 
     def get_user_username(self, obj):
         return obj.user.username
-    
-    def get_user_phone(self, obj):
-        return obj.user.phone if obj.user else None
     
     def get_user_parent_phone(self, obj):
         return obj.user.parent_phone if obj.user else None
@@ -681,7 +670,6 @@ class PillSerializer(serializers.ModelSerializer):
     status_display = serializers.SerializerMethodField()
     user_name = serializers.SerializerMethodField()
     user_username = serializers.SerializerMethodField()
-    user_phone = serializers.SerializerMethodField()
     user_parent_phone = serializers.SerializerMethodField()
     final_price = serializers.SerializerMethodField()
     items_count = serializers.SerializerMethodField()
@@ -694,7 +682,7 @@ class PillSerializer(serializers.ModelSerializer):
         model = Pill
         fields = [
             'id', 'pill_number', 'user_name', 'user_username', 
-            'user_phone', 'user_parent_phone', 'items', 'items_count', 'status', 
+            'user_parent_phone', 'items', 'items_count', 'status', 
             'status_display', 'date_added', 'coupon', 'final_price', 'shakeout_invoice_id', 
             'shakeout_invoice_url', 'easypay_invoice_uid', 'easypay_invoice_sequence', 
             'easypay_invoice_url', 'payment_gateway', 'payment_url', 'payment_status'
@@ -712,9 +700,6 @@ class PillSerializer(serializers.ModelSerializer):
 
     def get_user_username(self, obj):
         return obj.user.username if obj.user else None
-
-    def get_user_phone(self, obj):
-        return obj.user.phone if obj.user else None
 
     def get_user_parent_phone(self, obj):
         return obj.user.parent_phone if obj.user else None
@@ -853,10 +838,21 @@ class AdminLovedProductSerializer(LovedProductSerializer):
 
 
 class PurchasedBookSerializer(serializers.ModelSerializer):
+    # Read fields
     book_id = serializers.IntegerField(source='id', read_only=True)
     product_id = serializers.IntegerField(source='product.id', read_only=True)
-    pill_id = serializers.IntegerField(source='pill.id', read_only=True)
-    pill_number = serializers.CharField(source='pill.pill_number', read_only=True)
+    pill_id = serializers.IntegerField(source='pill.id', read_only=True, allow_null=True)
+    pill_number = serializers.CharField(source='pill.pill_number', read_only=True, allow_null=True)
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
+    username = serializers.CharField(source='user.username', read_only=True)
+    user_name = serializers.CharField(source='user.name', read_only=True)
+    
+    # Write fields (for create/update)
+    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), write_only=True)
+    product = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all(), write_only=True)
+    pill = serializers.PrimaryKeyRelatedField(queryset=Pill.objects.all(), required=False, allow_null=True, write_only=True)
+    pill_item = serializers.PrimaryKeyRelatedField(queryset=PillItem.objects.all(), required=False, allow_null=True, write_only=True)
+    
     product_number = serializers.SerializerMethodField()
     name = serializers.SerializerMethodField()
     year = serializers.SerializerMethodField()
@@ -879,13 +875,17 @@ class PurchasedBookSerializer(serializers.ModelSerializer):
     class Meta:
         model = PurchasedBook
         fields = [
-            'book_id', 'product_id', 'product_number', 'pill_id', 'pill_number',
+            'book_id', 'user', 'user_id', 'username', 'user_name',
+            'product', 'product_id', 'product_number', 
+            'pill', 'pill_id', 'pill_number',
+            'pill_item', 'product_name', 'created_at',
             'name', 'year', 'category_id', 'category_name', 'subject_id', 'subject_name',
             'teacher_id', 'teacher_name', 'sub_category_id', 'sub_category_name',
             'main_image', 'number_of_ratings', 'average_rating', 'pdf_file',
             'page_count', 'file_size_mb', 'language'
         ]
-        read_only_fields = fields
+        read_only_fields = ['book_id', 'created_at', 'product_id', 'pill_id', 'pill_number',
+                           'user_id', 'username', 'user_name']
 
     def _product(self, obj):
         return getattr(obj, 'product', None)
