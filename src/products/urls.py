@@ -84,6 +84,7 @@ urlpatterns = [
     path('dashboard/add-books-to-student/', views.AddBooksToStudentView.as_view(), name='add-books-to-student'),
     path('dashboard/purchased-books/', views.AdminPurchasedBookListCreateView.as_view(), name='admin-purchased-books-list-create'),
     path('dashboard/purchased-books/<int:pk>/', views.AdminPurchasedBookRetrieveUpdateDestroyView.as_view(), name='admin-purchased-books-detail'),
+    path('dashboard/purchased-books/by-user/<int:user_id>/', views.AdminUserPurchasedBooksView.as_view(), name='admin-user-purchased-books'),
 
     # Payment Endpoints (Fawaterak, Shakeout, EasyPay)
     path('api/payment/create/<int:pill_id>/', payment_views.create_payment_view, name='api_create_payment'),

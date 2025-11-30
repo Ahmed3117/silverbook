@@ -1409,6 +1409,29 @@ class AdminPurchasedBookListCreateView(generics.ListCreateAPIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+class AdminUserPurchasedBooksView(generics.ListAPIView):
+    """
+    Admin endpoint to list purchased books for a specific user
+    GET /products/dashboard/purchased-books/by-user/<user_id>/
+    """
+    serializer_class = PurchasedBookSerializer
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    pagination_class = CustomPageNumberPagination
+
+    def get_queryset(self):
+        user_id = self.kwargs.get('user_id')
+        return PurchasedBook.objects.filter(user_id=user_id).select_related(
+            'user', 'product', 'pill', 'pill_item',
+            'product__category', 'product__sub_category',
+            'product__subject', 'product__teacher'
+        )
+
+    # Optionally, allow ordering and searching if needed
+    filter_backends = [DjangoFilterBackend, rest_filters.SearchFilter, OrderingFilter]
+    search_fields = ['product_name', 'user__username', 'user__name', 'product__name']
+    ordering_fields = ['created_at', 'product_name', 'user__username']
+    ordering = ['-created_at']
+
 class AdminPurchasedBookRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     """
     Admin endpoint to retrieve, update, or delete a purchased book
