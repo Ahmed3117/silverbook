@@ -1,5 +1,5 @@
 
-from .models import Category, Pill, Product, ProductImage, CouponDiscount
+from .models import Category, Pill, Product, ProductImage, CouponDiscount, PurchasedBook
 from django_filters import rest_framework as filters
 from django.db.models import Q, F, FloatField, Case, When, Exists, OuterRef
 from django.utils import timezone
@@ -152,6 +152,21 @@ class PillFilter(filters.FilterSet):
     class Meta:
         model = Pill
         fields = ['status', 'user', 'pill_number']
+
+
+class PurchasedBookFilter(filters.FilterSet):
+    user_id = filters.NumberFilter(field_name='user__id')
+    product_id = filters.NumberFilter(field_name='product__id')
+    pill_id = filters.NumberFilter(field_name='pill__id')
+    start_date = filters.DateFilter(field_name='created_at', lookup_expr='gte', label='Start Date')
+    end_date = filters.DateFilter(field_name='created_at', lookup_expr='lte', label='End Date')
+    product_name = filters.CharFilter(field_name='product_name', lookup_expr='icontains')
+    username = filters.CharFilter(field_name='user__username', lookup_expr='icontains')
+    user_name = filters.CharFilter(field_name='user__name', lookup_expr='icontains')
+
+    class Meta:
+        model = PurchasedBook
+        fields = ['user', 'product', 'pill']
         
         
         
