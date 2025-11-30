@@ -839,7 +839,7 @@ class AdminLovedProductSerializer(LovedProductSerializer):
 
 class PurchasedBookSerializer(serializers.ModelSerializer):
     # Read fields
-    book_id = serializers.IntegerField(source='id', read_only=True)
+    id = serializers.IntegerField(read_only=True)
     product_id = serializers.IntegerField(source='product.id', read_only=True)
     pill_id = serializers.IntegerField(source='pill.id', read_only=True, allow_null=True)
     pill_number = serializers.CharField(source='pill.pill_number', read_only=True, allow_null=True)
@@ -875,7 +875,7 @@ class PurchasedBookSerializer(serializers.ModelSerializer):
     class Meta:
         model = PurchasedBook
         fields = [
-            'book_id', 'user', 'user_id', 'username', 'user_name',
+            'id', 'user', 'user_id', 'username', 'user_name',
             'product', 'product_id', 'product_number', 
             'pill', 'pill_id', 'pill_number',
             'pill_item', 'product_name', 'created_at',
@@ -884,7 +884,7 @@ class PurchasedBookSerializer(serializers.ModelSerializer):
             'main_image', 'number_of_ratings', 'average_rating', 'pdf_file',
             'page_count', 'file_size_mb', 'language'
         ]
-        read_only_fields = ['book_id', 'created_at', 'product_id', 'pill_id', 'pill_number',
+    read_only_fields = ['id', 'created_at', 'product_id', 'pill_id', 'pill_number',
                            'user_id', 'username', 'user_name']
 
     def _product(self, obj):
