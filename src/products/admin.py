@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.db.models import Sum
-from django.utils.html import format_html
+from django.utils.html import format_html, mark_safe
 from django.utils import timezone
 from django.http import HttpResponse
 from .models import (
@@ -110,8 +110,8 @@ class ProductAdmin(admin.ModelAdmin):
     @admin.display(description='Image')
     def get_image_preview(self, obj):
         if obj.pdf_file:
-            return format_html('<span style="color: #28a745;">✓ PDF</span>')
-        return format_html('<span style="color: #6c757d;">-</span>')
+            return mark_safe('<span style="color: #28a745;">✓ PDF</span>')
+        return mark_safe('<span style="color: #6c757d;">-</span>')
 
 
 
@@ -178,7 +178,7 @@ class PillAdmin(admin.ModelAdmin):
     def stock_problem_status(self, obj):
         """Display stock problem status"""
         # Stock problem tracking has been removed in this version
-        return format_html('<span style="color: #6c757d;">-</span>')
+        return mark_safe('<span style="color: #6c757d;">-</span>')
     
     stock_problem_status.short_description = 'Stock Status'
 
