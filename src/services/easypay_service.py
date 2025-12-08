@@ -18,7 +18,8 @@ class EasyPayService:
         self.secret_key = getattr(settings, 'EASYPAY_SECRET_KEY', '')
         self.base_url = getattr(settings, 'EASYPAY_BASE_URL', 'https://api.easy-adds.com/api')
         self.payment_method = getattr(settings, 'EASYPAY_PAYMENT_METHOD', 'fawry')
-        self.payment_expiry = getattr(settings, 'EASYPAY_PAYMENT_EXPIRY', 172800000) 
+        self.payment_expiry = getattr(settings, 'EASYPAY_PAYMENT_EXPIRY', 172800000)
+        self.webhook_url = getattr(settings, 'EASYPAY_WEBHOOK_URL', '')
 
         # URLs
         self.create_invoice_url = f"{self.base_url}/create-invoice/"
@@ -32,6 +33,7 @@ class EasyPayService:
         logger.info("🔧 EasyPay Service initialized")
         logger.info(f"🔧 Vendor Code: {self.vendor_code[:10]}...")
         logger.info(f"🔧 Base URL: {self.base_url}")
+        logger.info(f"🔧 Webhook URL: {self.webhook_url}")
 
     def calculate_signature(self, amount, profile_id, phone):
         """Calculate SHA256 signature for EasyPay API"""
@@ -130,6 +132,10 @@ class EasyPayService:
                 },
                 "items": items
             }
+            
+            # Add webhook URL if configured
+            if self.webhook_url:
+                payload["webhook_url"] = self.webhook_url
             
             # Log the final payload for debugging
             logger.info(f"EasyPay request payload:")

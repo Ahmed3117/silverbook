@@ -609,6 +609,28 @@ class CouponDiscountSerializer(serializers.ModelSerializer):
     def get_is_available(self, obj):
         return obj.available_use_times > 0 and self.get_is_active(obj)
 
+
+class BulkCouponDiscountSerializer(serializers.Serializer):
+    """Serializer for bulk coupon creation"""
+    number_of_coupons = serializers.IntegerField(min_value=1, max_value=1000, help_text="Number of coupons to create (1-1000)")
+    discount_value = serializers.FloatField(required=False, allow_null=True)
+    coupon_start = serializers.DateTimeField(required=False, allow_null=True)
+    coupon_end = serializers.DateTimeField(required=False, allow_null=True)
+    available_use_times = serializers.IntegerField(default=1, min_value=1)
+    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False, allow_null=True)
+    min_order_value = serializers.FloatField(required=False, allow_null=True)
+
+    def create(self, validated_data):
+        number_of_coupons = validated_data.pop('number_of_coupons')
+        coupons = []
+        
+        for _ in range(number_of_coupons):
+            coupon = CouponDiscount.objects.create(**validated_data)
+            coupons.append(coupon)
+        
+        return coupons
+
+
 class PillDetailSerializer(serializers.ModelSerializer):
     items = PillItemSerializer(many=True, read_only=True)
     coupon = CouponDiscountSerializer(read_only=True)

@@ -78,6 +78,7 @@ urlpatterns = [
     path('dashboard/discounts/', views.DiscountListCreateView.as_view(), name='admin-discount-list-create'),
     path('dashboard/discounts/<int:pk>/', views.DiscountRetrieveUpdateDestroyView.as_view(), name='admin-discount-detail'),
     path('dashboard/coupons/', views.CouponListCreateView.as_view(), name='admin-coupon-list-create'),
+    path('dashboard/coupons/bulk/', views.BulkCouponCreateView.as_view(), name='admin-coupon-bulk-create'),
     path('dashboard/coupons/<int:pk>/', views.CouponRetrieveUpdateDestroyView.as_view(), name='admin-coupon-detail'),
     path('dashboard/ratings/', views.RatingListCreateView.as_view(), name='admin-rating-list-create'),
     path('dashboard/ratings/<int:pk>/', views.RatingDetailView.as_view(), name='admin-rating-detail'),
