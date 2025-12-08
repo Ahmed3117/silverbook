@@ -144,6 +144,14 @@ def handle_easypay_webhook_post(request, api_key):
             logger.info(f"  - Status: {old_status} → {pill.status}")
             logger.info(f"  - Amount: {amount}")
             
+            # Grant purchased books to user - THIS IS CRITICAL for adding books after payment
+            try:
+                pill.grant_purchased_books()
+                logger.info(f"✓ Purchased books granted for pill {pill.pill_number}")
+            except Exception as e:
+                logger.error(f"Failed to grant purchased books for pill {pill.pill_number}: {str(e)}")
+                # Don't fail the webhook for book granting errors - the payment was still successful
+            
             # Send payment notification if applicable
             try:
                 pill.send_payment_notification()

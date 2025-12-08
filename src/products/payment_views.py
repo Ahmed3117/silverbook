@@ -950,6 +950,13 @@ class CheckEasyPayInvoiceStatusView(APIView):
                 pill.save(update_fields=['status'])
                 updated = True
                 
+                # Grant purchased books to user - THIS IS CRITICAL for adding books after payment
+                try:
+                    pill.grant_purchased_books()
+                    logger.info(f"✓ Purchased books granted for pill {pill_id}")
+                except Exception as e:
+                    logger.error(f"Failed to grant purchased books for pill {pill_id}: {str(e)}")
+                
                 logger.info(f"Pill {pill_id} payment status updated successfully")
             
             return Response({
