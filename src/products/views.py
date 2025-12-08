@@ -1031,6 +1031,27 @@ class CouponRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = CouponDiscountSerializer
     # permission_classes = [IsAdminOrHasEndpointPermission]
 
+
+class BulkCouponCreateView(generics.CreateAPIView):
+    """Create multiple coupons at once"""
+    serializer_class = BulkCouponDiscountSerializer
+    # permission_classes = [IsAdminOrHasEndpointPermission]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        coupons = serializer.save()
+        
+        # Return the created coupons using CouponDiscountSerializer
+        output_serializer = CouponDiscountSerializer(coupons, many=True)
+        return Response({
+            'success': True,
+            'message': f'{len(coupons)} coupons created successfully',
+            'count': len(coupons),
+            'coupons': output_serializer.data
+        }, status=status.HTTP_201_CREATED)
+
+
 class RatingListCreateView(generics.ListCreateAPIView):
     queryset = Rating.objects.all()
     serializer_class = RatingSerializer

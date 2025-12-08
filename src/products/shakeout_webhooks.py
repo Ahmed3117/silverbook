@@ -173,6 +173,15 @@ def update_pill_payment_status(pill, shakeout_status, webhook_data):
             pill.save(update_fields=['status'])
             
             logger.info(f"Updated Pill #{pill.pill_number} status from {old_status} to {new_status}")
+            
+            # Grant purchased books if payment is confirmed
+            if new_status == 'p':
+                try:
+                    pill.grant_purchased_books()
+                    logger.info(f"✓ Purchased books granted for pill {pill.pill_number}")
+                except Exception as e:
+                    logger.error(f"Failed to grant purchased books for pill {pill.pill_number}: {str(e)}")
+            
             return True
         else:
             logger.info(f"No status change needed for Pill #{pill.pill_number} (current: {old_status})")
