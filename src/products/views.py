@@ -811,9 +811,6 @@ class SubCategoryListCreateView(generics.ListCreateAPIView):
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['category','category__type']
     
-    def get_permissions(self):
-        from permissions.permissions import IsAdminOrHasEndpointPermission
-        return [IsAdminOrHasEndpointPermission()]
 
 class SubCategoryRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = SubCategory.objects.all()
@@ -1445,14 +1442,3 @@ class AdminPurchasedBookRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroy
     )
     serializer_class = PurchasedBookSerializer
     permission_classes = [IsAuthenticated, IsAdminUser]
-
-
-
-
-
-
-
-
-
-
-

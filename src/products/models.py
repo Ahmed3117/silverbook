@@ -682,4 +682,3 @@ def prepare_whatsapp_message(phone_number, pill):
         phone_number=phone_number,
         message=message
     )
-
