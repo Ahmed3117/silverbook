@@ -26,6 +26,7 @@ ALLOWED_HOSTS = ['localhost','127.0.0.1','13.49.226.161','api2.bookefay.com']
 #^ Application definition 
 
 INSTALLED_APPS = [ 
+    'boto3',
     'admin_interface',
     'colorfield',
     'django.contrib.admin',
@@ -45,9 +46,7 @@ INSTALLED_APPS = [
     'accounts',
     'products',
     'analysis',
-
 ]
-
 AUTH_USER_MODEL ='accounts.User'
 
 MIDDLEWARE = [
@@ -241,19 +240,33 @@ BEON_SMS_TOKEN = os.getenv('BEON_SMS_TOKEN', 'XCuzhHqoHZXY21F5PdK0NMZDWKy67NoHG4
 
 # ^ < ==========================AWS CONFIG========================== >
 
-"""
-AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
-AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
-AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
-AWS_S3_SIGNATURE_VERSION = 's3v4'
-AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME')
-AWS_S3_CUSTOM_DOMAIN = "%s.s3.amazonaws.com" % AWS_STORAGE_BUCKET_NAME
-AWS_S3_FILE_OVERWRITE = False
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+
+AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME")
+AWS_S3_REGION_NAME = 'auto'
+
+# R2 endpoint
+AWS_S3_ENDPOINT_URL = os.getenv("AWS_S3_ENDPOINT_URL")
+
+# ⭐️ CUSTOM DOMAIN (via DNS CNAME)
+AWS_S3_CUSTOM_DOMAIN = os.getenv("AWS_S3_CUSTOM_DOMAIN")
+
 AWS_DEFAULT_ACL = None
-AWS_HEADERS = None
+AWS_S3_FILE_OVERWRITE = False
 AWS_S3_VERIFY = True
-DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-"""
+AWS_S3_SIGNATURE_VERSION = "s3v4"
+AWS_HEADERS = None
+
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+
 
 
 
@@ -286,5 +299,13 @@ PILL_STATUS_URL = os.getenv('PILL_STATUS_URL', '')
 
 
 
+# Your normal domain (orange cloud, cached, etc.)
+DOMAIN = "silverbook.easy-stream.net"
 
+# Bypass domain for large uploads (DNS-only / grey cloud in Cloudflare)
+UPLOAD_DOMAIN = "easy.easy-stream.net"
+
+# Optional: only use upload domain for files > 50 MB
+USE_UPLOAD_SUBDOMAIN_FOR_LARGE_FILES = True
+LARGE_FILE_THRESHOLD = 50 * 1024 * 1024  # 50 MB
 
