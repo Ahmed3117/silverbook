@@ -1,17 +1,17 @@
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated,IsAdminUser
 from rest_framework.response import Response
 from django.db.models import Count, Sum, Q
-from products.models import PillItem, Product
+from products.models import PurchasedBook, Product, Pill
 from accounts.models import YEAR_CHOICES
 from .serializers import SalesAnalyticsSerializer, BestSellerProductSerializer
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAdminUser])
 def sales_analytics(request):
     """
-    Get sales analytics from paid PillItems
+    Get sales analytics from PurchasedBook records
     
     Query Parameters:
     - ordering: 'ascend' or 'descend' (default: 'descend')
@@ -43,8 +43,8 @@ def sales_analytics(request):
     # Determine ordering direction
     order_prefix = '' if ordering == 'ascend' else '-'
     
-    # Query only paid pill items
-    paid_items = PillItem.objects.filter(status='p').select_related(
+    # Query purchased books (these represent completed sales)
+    purchased_books = PurchasedBook.objects.select_related(
         'product__category',
         'product__sub_category',
         'product__subject',
@@ -53,34 +53,34 @@ def sales_analytics(request):
     
     # Apply date filters if provided
     if date_from:
-        paid_items = paid_items.filter(date_sold__gte=date_from)
+        purchased_books = purchased_books.filter(created_at__gte=date_from)
     if date_to:
-        paid_items = paid_items.filter(date_sold__lte=date_to)
+        purchased_books = purchased_books.filter(created_at__lte=date_to)
     
-    # Query all pill items for total orders
-    all_items = PillItem.objects.all()
+    # Query all pills for total orders count
+    all_pills = Pill.objects.all()
     
-    # Apply date filters to all_items as well
+    # Apply date filters to all_pills as well
     if date_from:
-        all_items = all_items.filter(date_added__gte=date_from)
+        all_pills = all_pills.filter(date_added__gte=date_from)
     if date_to:
-        all_items = all_items.filter(date_added__lte=date_to)
+        all_pills = all_pills.filter(date_added__lte=date_to)
     
     # Summary statistics
     summary = {
-        'total_paid_books': paid_items.count(),
-        'total_orders': all_items.values('pill').distinct().count(),
-        'paid_orders': paid_items.values('pill').distinct().count(),
-        'waiting_orders': all_items.filter(
+        'total_paid_books': purchased_books.count(),
+        'total_orders': all_pills.count(),
+        'paid_orders': all_pills.filter(status='p').count(),
+        'waiting_orders': all_pills.filter(
             Q(status='w') | Q(status='i')
-        ).values('pill').distinct().count(),
-        'total_revenue': float(paid_items.aggregate(
+        ).count(),
+        'total_revenue': float(purchased_books.aggregate(
             total=Sum('price_at_sale')
         )['total'] or 0.0)
     }
     
     # Categories analytics
-    categories_data = paid_items.filter(
+    categories_data = purchased_books.filter(
         product__category__isnull=False
     ).values(
         'product__category__id',
@@ -102,7 +102,7 @@ def sales_analytics(request):
     ]
     
     # Subcategories analytics
-    subcategories_data = paid_items.filter(
+    subcategories_data = purchased_books.filter(
         product__sub_category__isnull=False
     ).values(
         'product__sub_category__id',
@@ -124,7 +124,7 @@ def sales_analytics(request):
     ]
     
     # Subjects analytics
-    subjects_data = paid_items.filter(
+    subjects_data = purchased_books.filter(
         product__subject__isnull=False
     ).values(
         'product__subject__id',
@@ -146,7 +146,7 @@ def sales_analytics(request):
     ]
     
     # Teachers analytics
-    teachers_data = paid_items.filter(
+    teachers_data = purchased_books.filter(
         product__teacher__isnull=False
     ).values(
         'product__teacher__id',
@@ -171,7 +171,7 @@ def sales_analytics(request):
     # Years list is not affected by ordering or limit parameters
     years = []
     for year_code, year_name in YEAR_CHOICES:
-        count = paid_items.filter(product__year=year_code).count()
+        count = purchased_books.filter(product__year=year_code).count()
         years.append({
             'year': year_code,
             'count': count
@@ -192,10 +192,10 @@ def sales_analytics(request):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAdminUser])
 def best_seller_products(request):
     """
-    Get best seller products based on paid PillItems
+    Get best seller products based on PurchasedBook records
     
     Query Parameters:
     - limit: number to limit results (default: 10)
@@ -215,14 +215,14 @@ def best_seller_products(request):
     except ValueError:
         limit = 10
     
-    # Get best selling products with date filtering
-    best_sellers = PillItem.objects.filter(status='p')
+    # Get best selling products from PurchasedBook with date filtering
+    best_sellers = PurchasedBook.objects.all()
     
     # Apply date filters if provided
     if date_from:
-        best_sellers = best_sellers.filter(date_sold__gte=date_from)
+        best_sellers = best_sellers.filter(created_at__gte=date_from)
     if date_to:
-        best_sellers = best_sellers.filter(date_sold__lte=date_to)
+        best_sellers = best_sellers.filter(created_at__lte=date_to)
     
     # Continue with aggregation
     best_sellers = best_sellers.values(
