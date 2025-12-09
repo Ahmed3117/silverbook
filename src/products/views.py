@@ -307,6 +307,62 @@ class PurchasedBookListView(generics.ListAPIView):
         )
 
 
+class PurchasedBookPDFDownloadView(APIView):
+    """
+    Get a presigned URL for downloading a purchased book's PDF.
+    
+    This endpoint generates a temporary URL (valid for 1 hour) that allows
+    the user to download the PDF file. The user must own the book.
+    
+    URL: GET /products/my-books/<purchased_book_id>/download/
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, purchased_book_id):
+        from services.s3_service import s3_service
+        
+        # Check if user owns this book
+        purchased_book = get_object_or_404(
+            PurchasedBook.objects.select_related('product'),
+            id=purchased_book_id,
+            user=request.user
+        )
+        
+        product = purchased_book.product
+        
+        # Check if product has a PDF file
+        if not product.pdf_file:
+            return Response({
+                'success': False,
+                'error': 'This book does not have a PDF file available'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Get the file key from the pdf_file field
+        # The pdf_file.name contains the S3 key (e.g., 'pdfs/book.pdf')
+        file_key = product.pdf_file.name
+        
+        # Generate presigned URL (valid for 1 hour)
+        result = s3_service.generate_presigned_download_url(
+            object_key=file_key,
+            expiration=3600  # 1 hour
+        )
+        
+        if result['success']:
+            return Response({
+                'success': True,
+                'product_name': product.name,
+                'download_url': result['url'],
+                'expires_in': 3600,
+                'expires_in_human': '1 hour'
+            }, status=status.HTTP_200_OK)
+        else:
+            logger.error(f"Failed to generate PDF download URL for purchased book {purchased_book_id}: {result['error']}")
+            return Response({
+                'success': False,
+                'error': 'Failed to generate download URL. Please try again.'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 class ProductOwnedCheckView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -798,12 +854,12 @@ class CategoryListCreateView(generics.ListCreateAPIView):
     serializer_class = CategorySerializer
     filter_backends = [DjangoFilterBackend]
     filterset_class = CategoryFilter
-    # permission_classes = [IsAdminOrHasEndpointPermission]
+    permission_classes = [IsAdminUser]
 
 class CategoryRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    # permission_classes = [IsAdminOrHasEndpointPermission]
+    permission_classes = [IsAdminUser]
 
 class SubCategoryListCreateView(generics.ListCreateAPIView):
     queryset = SubCategory.objects.all()
@@ -815,19 +871,19 @@ class SubCategoryListCreateView(generics.ListCreateAPIView):
 class SubCategoryRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = SubCategory.objects.all()
     serializer_class = SubCategorySerializer
-    # permission_classes = [IsAdminOrHasEndpointPermission]
+    permission_classes = [IsAdminUser]
 
 class SubjectListCreateView(generics.ListCreateAPIView):
     queryset = Subject.objects.all()
     serializer_class = SubjectSerializer
     filter_backends = [DjangoFilterBackend, rest_filters.SearchFilter]
     search_fields = ['name']
-    # permission_classes = [IsAdminOrHasEndpointPermission]
+    permission_classes = [IsAdminUser]
 
 class SubjectRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Subject.objects.all()
     serializer_class = SubjectSerializer
-    # permission_classes = [IsAdminOrHasEndpointPermission]
+    permission_classes = [IsAdminUser]
     
 
 class TeacherListCreateView(generics.ListCreateAPIView):
@@ -836,12 +892,12 @@ class TeacherListCreateView(generics.ListCreateAPIView):
     filter_backends = [DjangoFilterBackend, rest_filters.SearchFilter]
     filterset_fields = ['subject']
     search_fields = ['name', 'subject__name']
-    # permission_classes = [IsAdminOrHasEndpointPermission]
+    permission_classes = [IsAdminUser]
 
 class TeacherRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Teacher.objects.all()
     serializer_class = TeacherSerializer
-    # permission_classes = [IsAdminOrHasEndpointPermission]
+    permission_classes = [IsAdminUser]
     
 
 class ProductListCreateView(generics.ListCreateAPIView):
@@ -851,7 +907,7 @@ class ProductListCreateView(generics.ListCreateAPIView):
     filterset_class = ProductFilter
     search_fields = ['name', 'category__name', 'description']
     pagination_class = CustomPageNumberPagination
-    # permission_classes = [IsAdminOrHasEndpointPermission]
+    permission_classes = [IsAdminUser]
 
 class ProductListBreifedView(generics.ListCreateAPIView):
     queryset = Product.objects.all()
@@ -859,21 +915,21 @@ class ProductListBreifedView(generics.ListCreateAPIView):
     filter_backends = [DjangoFilterBackend, rest_filters.SearchFilter]
     filterset_class = ProductFilter
     search_fields = ['name', 'category__name', 'description']
-    # permission_classes = [IsAdminOrHasEndpointPermission]
+    permission_classes = [IsAdminUser]
 
 class ProductRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
-    # permission_classes = [IsAdminOrHasEndpointPermission]
+    permission_classes = [IsAdminUser]
 
 class ProductImageListCreateView(generics.ListCreateAPIView):
     queryset = ProductImage.objects.all()
     serializer_class = ProductImageSerializer
     filterset_fields = ['product']
-    # permission_classes = [IsAdminOrHasEndpointPermission]
+    permission_classes = [IsAdminUser]
 
 class ProductImageBulkCreateView(generics.CreateAPIView):
-    # permission_classes = [IsAdminOrHasEndpointPermission]
+    permission_classes = [IsAdminUser]
 
     def post(self, request, *args, **kwargs):
         serializer = ProductImageBulkUploadSerializer(data=request.data)
@@ -893,14 +949,14 @@ class ProductImageBulkCreateView(generics.CreateAPIView):
 class ProductImageDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = ProductImage.objects.all()
     serializer_class = ProductImageSerializer
-    # permission_classes = [IsAdminOrHasEndpointPermission]
+    permission_classes = [IsAdminUser]
 
 class ProductDescriptionListCreateView(generics.ListCreateAPIView):
     queryset = ProductDescription.objects.all()
     serializer_class = ProductDescriptionSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['product']
-    # permission_classes = [IsAdminOrHasEndpointPermission]
+    permission_classes = [IsAdminUser]
 
     def get_serializer_class(self):
         if self.request.method == 'POST' and isinstance(self.request.data, list):
@@ -909,7 +965,7 @@ class ProductDescriptionListCreateView(generics.ListCreateAPIView):
 
 class ProductDescriptionBulkCreateView(generics.CreateAPIView):
     queryset = ProductDescription.objects.all()
-    # permission_classes = [IsAdminOrHasEndpointPermission]
+    permission_classes = [IsAdminUser]
 
     def get_serializer_class(self):
         if isinstance(self.request.data, list):
@@ -932,7 +988,7 @@ class ProductDescriptionBulkCreateView(generics.CreateAPIView):
 class ProductDescriptionRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = ProductDescription.objects.all()
     serializer_class = ProductDescriptionSerializer
-    # permission_classes = [IsAdminOrHasEndpointPermission]
+    permission_classes = [IsAdminUser]
 
 class SpecialProductListCreateView(generics.ListCreateAPIView):
     queryset = SpecialProduct.objects.all()
@@ -941,7 +997,7 @@ class SpecialProductListCreateView(generics.ListCreateAPIView):
     filterset_fields = ['is_active', 'product']
     search_fields = ['product__name', 'product__category__name']
     ordering_fields = ['order', 'created_at']
-    # permission_classes = [IsAdminOrHasEndpointPermission]
+    permission_classes = [IsAdminUser]
 
     def perform_create(self, serializer):
         serializer.save()
@@ -949,7 +1005,7 @@ class SpecialProductListCreateView(generics.ListCreateAPIView):
 class SpecialProductRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = SpecialProduct.objects.all()
     serializer_class = SpecialProductSerializer
-    # permission_classes = [IsAdminOrHasEndpointPermission]
+    permission_classes = [IsAdminUser]
 
 class BestProductListCreateView(generics.ListCreateAPIView):
     queryset = BestProduct.objects.all()
@@ -958,7 +1014,7 @@ class BestProductListCreateView(generics.ListCreateAPIView):
     filterset_fields = ['is_active', 'product']
     search_fields = ['product__name', 'product__category__name']
     ordering_fields = ['order', 'created_at']
-    # permission_classes = [IsAdminOrHasEndpointPermission]
+    permission_classes = [IsAdminUser]
 
     def perform_create(self, serializer):
         serializer.save()
@@ -966,7 +1022,7 @@ class BestProductListCreateView(generics.ListCreateAPIView):
 class BestProductRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = BestProduct.objects.all()
     serializer_class = BestProductSerializer
-    # permission_classes = [IsAdminOrHasEndpointPermission]
+    permission_classes = [IsAdminUser]
 
 from django.db.models import Prefetch
 
@@ -976,7 +1032,7 @@ class PillListCreateView(generics.ListCreateAPIView):
     filterset_class = PillFilter
     search_fields = ['user__name', 'user__username', 'pill_number', 'user__parent_phone', 'shakeout_invoice_id', 'shakeout_invoice_ref', 'easypay_invoice_uid', 'easypay_invoice_sequence', 'easypay_fawry_ref']
     pagination_class = CustomPageNumberPagination
-    # permission_classes = [IsAdminOrHasEndpointPermission]
+    permission_classes = [IsAdminUser]
 
     def get_queryset(self):
         # Optimize queryset with select_related, prefetch_related, and annotations
@@ -1005,37 +1061,37 @@ class PillListCreateView(generics.ListCreateAPIView):
 class PillRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Pill.objects.all()
     serializer_class = PillDetailSerializer
-    # permission_classes = [IsAdminOrHasEndpointPermission]
+    permission_classes = [IsAdminUser]
 
 class DiscountListCreateView(generics.ListCreateAPIView):
     queryset = Discount.objects.all()
     serializer_class = DiscountSerializer
-    # permission_classes = [IsAdminOrHasEndpointPermission]
+    permission_classes = [IsAdminUser]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['product', 'category', 'is_active']
 
 class DiscountRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Discount.objects.all()
     serializer_class = DiscountSerializer
-    # permission_classes = [IsAdminOrHasEndpointPermission]
+    permission_classes = [IsAdminUser]
 
 class CouponListCreateView(generics.ListCreateAPIView):
     queryset = CouponDiscount.objects.all()
     serializer_class = CouponDiscountSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_class = CouponDiscountFilter
-    # permission_classes = [IsAdminOrHasEndpointPermission]
+    permission_classes = [IsAdminUser]
 
 class CouponRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = CouponDiscount.objects.all()
     serializer_class = CouponDiscountSerializer
-    # permission_classes = [IsAdminOrHasEndpointPermission]
+    permission_classes = [IsAdminUser]
 
 
 class BulkCouponCreateView(generics.CreateAPIView):
     """Create multiple coupons at once"""
     serializer_class = BulkCouponDiscountSerializer
-    # permission_classes = [IsAdminOrHasEndpointPermission]
+    permission_classes = [IsAdminUser]
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -1056,12 +1112,12 @@ class RatingListCreateView(generics.ListCreateAPIView):
     queryset = Rating.objects.all()
     serializer_class = RatingSerializer
     filterset_fields = ['product']
-    # permission_classes = [IsAdminOrHasEndpointPermission]
+    permission_classes = [IsAdminUser]
 
 class RatingDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Rating.objects.all()
     serializer_class = RatingSerializer
-    # permission_classes = [IsAdminOrHasEndpointPermission]
+    permission_classes = [IsAdminUser]
 
 
 
