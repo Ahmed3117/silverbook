@@ -26,6 +26,7 @@ ALLOWED_HOSTS = ['localhost','127.0.0.1','13.49.226.161','api2.bookefay.com']
 #^ Application definition 
 
 INSTALLED_APPS = [ 
+    'boto3',
     'admin_interface',
     'colorfield',
     'django.contrib.admin',
@@ -45,9 +46,7 @@ INSTALLED_APPS = [
     'accounts',
     'products',
     'analysis',
-
 ]
-
 AUTH_USER_MODEL ='accounts.User'
 
 MIDDLEWARE = [
@@ -313,5 +312,13 @@ PILL_STATUS_URL = os.getenv('PILL_STATUS_URL', '')
 
 
 
+# Your normal domain (orange cloud, cached, etc.)
+DOMAIN = "silverbook.easy-stream.net"
 
+# Bypass domain for large uploads (DNS-only / grey cloud in Cloudflare)
+UPLOAD_DOMAIN = "easy.easy-stream.net"
+
+# Optional: only use upload domain for files > 50 MB
+USE_UPLOAD_SUBDOMAIN_FOR_LARGE_FILES = True
+LARGE_FILE_THRESHOLD = 50 * 1024 * 1024  # 50 MB
 

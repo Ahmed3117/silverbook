@@ -1132,8 +1132,3 @@ class UserCartSerializer(serializers.Serializer):
 
 
 
-
-
-
-
-
