@@ -135,10 +135,6 @@ STATIC_URL = 'static/'
 #STATICFILES_DIRS = os.path.join(BASE_DIR, 'static')
 STATIC_ROOT = 'static/'
 
-#^ < ==========================Media Files========================== >
-MEDIA_URL = 'media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 DATA_UPLOAD_MAX_NUMBER_FIELDS=50000
 
@@ -239,21 +235,52 @@ WHATSAPP_ID = os.getenv('WHATSAPP_ID')
 BEON_SMS_BASE_URL = os.getenv('BEON_SMS_BASE_URL', 'https://v3.api.beon.chat/api/v3/messages/sms/bulk')
 BEON_SMS_TOKEN = os.getenv('BEON_SMS_TOKEN', 'XCuzhHqoHZXY21F5PdK0NMZDWKy67NoHG4Trscg#5ghFVrKadomBDaa024CV')
 
-# ^ < ==========================AWS CONFIG========================== >
+# ^ < ==========================AWS / Cloudflare R2 Storage CONFIG========================== >
 
-"""
+# Cloudflare R2 Configuration (S3-compatible)
 AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
 AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
+AWS_S3_ENDPOINT_URL = os.getenv('AWS_S3_ENDPOINT_URL')  # R2 endpoint
+AWS_S3_CUSTOM_DOMAIN = os.getenv('AWS_S3_CUSTOM_DOMAIN')  # Public CDN domain
+
+# S3 Settings
 AWS_S3_SIGNATURE_VERSION = 's3v4'
-AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME')
-AWS_S3_CUSTOM_DOMAIN = "%s.s3.amazonaws.com" % AWS_STORAGE_BUCKET_NAME
-AWS_S3_FILE_OVERWRITE = False
-AWS_DEFAULT_ACL = None
-AWS_HEADERS = None
-AWS_S3_VERIFY = True
-DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-"""
+AWS_S3_REGION_NAME = 'auto'  # R2 uses 'auto' for region
+AWS_S3_FILE_OVERWRITE = False  # Don't overwrite files with same name
+AWS_DEFAULT_ACL = None  # R2 doesn't support ACLs
+AWS_QUERYSTRING_AUTH = False  # Use custom domain without query strings for public files
+AWS_S3_OBJECT_PARAMETERS = {
+    'CacheControl': 'max-age=86400',  # Cache files for 1 day
+}
+
+# Toggle S3 storage on/off (useful for local development)
+USE_S3_STORAGE = os.getenv('USE_S3_STORAGE', 'False').lower() == 'true'
+
+if USE_S3_STORAGE:
+    # Use S3 for all file storage
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
+    # Media files will be served from the custom domain
+    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
+else:
+    # Use local file storage (for development)
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
+    MEDIA_URL = 'media/'
+    MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 
 
