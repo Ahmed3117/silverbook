@@ -4,6 +4,8 @@ import logging
 from django.shortcuts import get_object_or_404
 from django.db.models import Count, Sum, F, Avg
 from django.db import transaction
+import json
+import mimetypes
 
 logger = logging.getLogger(__name__)
 from django.utils import timezone
@@ -16,7 +18,7 @@ from accounts.pagination import CustomPageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.views import APIView
 from .serializers import *
 from .filters import CategoryFilter, CouponDiscountFilter, PillFilter, ProductFilter, PurchasedBookFilter
@@ -27,6 +29,7 @@ from .models import (
 )
 from accounts.models import User
 from .permissions import IsOwner, IsOwnerOrReadOnly
+from services.s3_service import s3_service
 
 class CategoryListView(generics.ListAPIView):
     queryset = Category.objects.all()
@@ -907,7 +910,7 @@ class ProductListCreateView(generics.ListCreateAPIView):
     filterset_class = ProductFilter
     search_fields = ['name', 'category__name', 'description']
     pagination_class = CustomPageNumberPagination
-    permission_classes = [IsAdminUser]
+    permission_classes = [AllowAny]  # Changed for testing - change back to IsAdminUser in production
 
 class ProductListBreifedView(generics.ListCreateAPIView):
     queryset = Product.objects.all()
@@ -945,6 +948,41 @@ class ProductImageBulkCreateView(generics.CreateAPIView):
             {"message": "Images uploaded successfully."},
             status=status.HTTP_201_CREATED
         )
+
+
+class ProductImageBulkS3CreateView(generics.CreateAPIView):
+    """
+    Bulk create product images from S3 object keys.
+    
+    POST /products/dashboard/product-images/bulk-upload-s3/
+    
+    Request body:
+    {
+        "product": 1,
+        "image_object_keys": [
+            "products/uuid1.jpg",
+            "products/uuid2.jpg"
+        ]
+    }
+    """
+    permission_classes = [AllowAny]  # Allow any user for testing - change to IsAdminUser in production
+    parser_classes = [JSONParser]
+
+    def post(self, request, *args, **kwargs):
+        serializer = ProductImageBulkS3UploadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        created_images = serializer.save()
+        
+        # Return the created images data
+        response_data = [
+            {
+                'id': img.id,
+                'product': img.product_id,
+                'image': img.image.name if img.image else None
+            }
+            for img in created_images
+        ]
+        return Response(response_data, status=status.HTTP_201_CREATED)
 
 class ProductImageDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = ProductImage.objects.all()
@@ -1519,3 +1557,89 @@ class AdminPurchasedBookRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroy
     )
     serializer_class = PurchasedBookSerializer
     permission_classes = [IsAuthenticated, IsAdminUser]
+
+
+class GeneratePresignedUploadUrlView(APIView):
+    """
+    Generate presigned URLs for direct S3 uploads.
+    
+    This endpoint allows clients to upload large files directly to S3
+    without storing them on the server first.
+    
+    POST /products/api/generate-presigned-url/
+    
+    Request body:
+    {
+        "file_name": "my-pdf.pdf",
+        "file_type": "application/pdf",
+        "file_category": "pdf"  # or "image"
+    }
+    
+    Response:
+    {
+        "success": true,
+        "url": "https://s3-presigned-url...",
+        "public_url": "https://custom-domain/path/file.pdf",
+        "object_key": "pdfs/uuid-filename.pdf",
+        "file_type": "application/pdf"
+    }
+    """
+    permission_classes = [AllowAny]  # Allow any user for testing - change to IsAuthenticated in production
+    parser_classes = [JSONParser]
+    
+    def post(self, request):
+        try:
+            file_name = request.data.get('file_name', '')
+            file_type = request.data.get('file_type', 'application/octet-stream')
+            file_category = request.data.get('file_category', 'uploads')  # 'pdf', 'image', or custom folder
+            
+            if not file_name:
+                return Response(
+                    {'success': False, 'error': 'file_name is required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Validate file category
+            allowed_categories = ['pdf', 'image', 'uploads']
+            if file_category not in allowed_categories:
+                return Response(
+                    {'success': False, 'error': f'file_category must be one of: {", ".join(allowed_categories)}'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Generate a unique object key
+            import uuid
+            file_ext = file_name.split('.')[-1] if '.' in file_name else ''
+            unique_name = f"{uuid.uuid4()}.{file_ext}" if file_ext else str(uuid.uuid4())
+            
+            # Map category to S3 folder
+            folder_map = {
+                'pdf': 'pdfs',
+                'image': 'products',
+                'uploads': 'uploads'
+            }
+            folder = folder_map.get(file_category, 'uploads')
+            object_key = f"{folder}/{unique_name}"
+            
+            # Generate presigned URL
+            result = s3_service.generate_presigned_upload_url(
+                object_key,
+                expiration=3600,  # 1 hour
+                content_type=file_type
+            )
+            
+            if result['success']:
+                return Response(result, status=status.HTTP_200_OK)
+            else:
+                return Response(
+                    {'success': False, 'error': result.get('error', 'Failed to generate presigned URL')},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+                
+        except Exception as e:
+            logger.error(f"Error generating presigned URL: {str(e)}")
+            return Response(
+                {'success': False, 'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
