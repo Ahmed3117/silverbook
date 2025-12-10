@@ -78,6 +78,65 @@ class ProductImageBulkUploadSerializer(serializers.Serializer):
         allow_empty=False
     )
 
+
+class ProductS3UploadSerializer(serializers.Serializer):
+    """
+    Serializer for creating/updating products with S3 URLs instead of file uploads.
+    Accepts object keys from S3 presigned uploads.
+    """
+    name = serializers.CharField(max_length=100)
+    category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), required=False, allow_null=True)
+    sub_category = serializers.PrimaryKeyRelatedField(queryset=SubCategory.objects.all(), required=False, allow_null=True)
+    subject = serializers.PrimaryKeyRelatedField(queryset=Subject.objects.all(), required=False, allow_null=True)
+    teacher = serializers.PrimaryKeyRelatedField(queryset=Teacher.objects.all(), required=False, allow_null=True)
+    price = serializers.FloatField(required=False, allow_null=True)
+    description = serializers.CharField(max_length=1000, required=False, allow_blank=True)
+    year = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    
+    # S3 URLs - these come from presigned upload responses
+    pdf_object_key = serializers.CharField(max_length=500, required=False, allow_blank=True, help_text="S3 object key for PDF file (e.g., 'pdfs/uuid.pdf')")
+    base_image_object_key = serializers.CharField(max_length=500, required=False, allow_blank=True, help_text="S3 object key for product image (e.g., 'products/uuid.jpg')")
+    
+    # Metadata
+    page_count = serializers.IntegerField(required=False, allow_null=True)
+    file_size_mb = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
+    language = serializers.CharField(max_length=2, default='ar')
+    is_available = serializers.BooleanField(default=True)
+    
+    def create(self, validated_data):
+        """Create a product from S3 object keys"""
+        from services.s3_service import s3_service
+        
+        pdf_key = validated_data.pop('pdf_object_key', None)
+        image_key = validated_data.pop('base_image_object_key', None)
+        
+        # Update file fields to use S3 URLs
+        if pdf_key:
+            validated_data['pdf_file'] = pdf_key
+        if image_key:
+            validated_data['base_image'] = image_key
+        
+        # Create the product
+        product = Product.objects.create(**validated_data)
+        return product
+    
+    def update(self, instance, validated_data):
+        """Update a product with S3 object keys"""
+        pdf_key = validated_data.pop('pdf_object_key', None)
+        image_key = validated_data.pop('base_image_object_key', None)
+        
+        if pdf_key:
+            instance.pdf_file = pdf_key
+        if image_key:
+            instance.base_image = image_key
+        
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        
+        instance.save()
+        return instance
+
+
 class ProductSerializer(serializers.ModelSerializer):
     images = ProductImageSerializer(many=True, read_only=True)
     discounted_price = serializers.SerializerMethodField()
@@ -97,6 +156,10 @@ class ProductSerializer(serializers.ModelSerializer):
     teacher_image = serializers.SerializerMethodField()
     sub_category_id = serializers.SerializerMethodField()
     sub_category_name = serializers.SerializerMethodField()
+    
+    # Override file fields to accept S3 object keys (strings)
+    pdf_file = serializers.CharField(max_length=500, required=False, allow_blank=True, allow_null=True)
+    base_image = serializers.CharField(max_length=500, required=False, allow_blank=True, allow_null=True)
 
     class Meta:
         model = Product
@@ -232,6 +295,42 @@ class ProductSerializer(serializers.ModelSerializer):
         
         return data
 
+    def create(self, validated_data):
+        """Handle S3 object keys for pdf_file and base_image"""
+        pdf_file = validated_data.pop('pdf_file', None)
+        base_image = validated_data.pop('base_image', None)
+        
+        product = Product.objects.create(**validated_data)
+        
+        # Set the file fields with the S3 keys
+        if pdf_file:
+            product.pdf_file.name = pdf_file
+        if base_image:
+            product.base_image.name = base_image
+        
+        if pdf_file or base_image:
+            product.save()
+        
+        return product
+
+    def update(self, instance, validated_data):
+        """Handle S3 object keys for pdf_file and base_image on update"""
+        pdf_file = validated_data.pop('pdf_file', None)
+        base_image = validated_data.pop('base_image', None)
+        
+        # Update other fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        
+        # Set the file fields with the S3 keys
+        if pdf_file:
+            instance.pdf_file.name = pdf_file
+        if base_image:
+            instance.base_image.name = base_image
+        
+        instance.save()
+        return instance
+
 class ProductBreifedSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
@@ -300,6 +399,51 @@ class ProductImageBulkUploadSerializer(serializers.Serializer):
     )
 
 
+class ProductImageBulkS3UploadSerializer(serializers.Serializer):
+    """
+    Serializer for bulk uploading product images via S3 object keys.
+    Accept a list of S3 object keys and create ProductImage records.
+    
+    Request format:
+    {
+        "product": 1,
+        "images": [
+            {"object_key": "products/uuid1.jpg"},
+            {"object_key": "products/uuid2.jpg"}
+        ]
+    }
+    """
+    product = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all())
+    images = serializers.ListField(
+        child=serializers.DictField(),
+        allow_empty=False,
+        help_text="List of image objects with object_key"
+    )
+    
+    def validate_images(self, value):
+        """Validate that each image has an object_key"""
+        for i, img in enumerate(value):
+            if 'object_key' not in img:
+                raise serializers.ValidationError(f"Image at index {i} is missing 'object_key'")
+        return value
+    
+    def create(self, validated_data):
+        """Create ProductImage records from S3 object keys"""
+        product = validated_data['product']
+        images_data = validated_data['images']
+        
+        product_images = []
+        for img in images_data:
+            product_image = ProductImage(
+                product=product,
+                image=img['object_key']
+            )
+            product_images.append(product_image)
+        
+        created_images = ProductImage.objects.bulk_create(product_images)
+        return created_images
+
+
 class SpecialProductSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
     product_id = serializers.PrimaryKeyRelatedField(
@@ -332,8 +476,6 @@ class BestProductSerializer(serializers.ModelSerializer):
             'order', 'is_active', 'created_at', 'updated_at'
         ]
         read_only_fields = ['created_at', 'updated_at']
-
-
 
 
 

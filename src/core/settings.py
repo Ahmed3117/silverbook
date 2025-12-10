@@ -15,7 +15,7 @@ load_dotenv(override=True)
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 #^ SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('SECRET_KEY')
+SECRET_KEY = 'django-insecure-dbpx)!#%s!#n^&&r^e0!t&ot$vit@t8++_=1*)#84ym)j-v@(w'
 
 #^ SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
