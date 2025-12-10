@@ -175,8 +175,8 @@ Authorization: Bearer {jwt_token}
   "subject": 1,
   "subject_id": 1,
   "subject_name": "Physics",
-  "pdf_file": "pdfs/a1b2c3d4-5678-90ab-cdef.pdf",
-  "base_image": "products/e5f6g7h8-1234-56cd-efgh.jpg",
+  "pdf_file": "https://your-cdn-domain.com/pdfs/a1b2c3d4-5678-90ab-cdef.pdf",
+  "base_image": "https://your-cdn-domain.com/products/e5f6g7h8-1234-56cd-efgh.jpg",
   "page_count": 200,
   "file_size_mb": "25.50",
   "date_added": "2025-12-10T10:30:00Z",
@@ -252,17 +252,17 @@ Authorization: Bearer {jwt_token}
   {
     "id": 10,
     "product": 5,
-    "image": "products/img1-uuid.jpg"
+    "image": "https://your-cdn-domain.com/products/img1-uuid.jpg"
   },
   {
     "id": 11,
     "product": 5,
-    "image": "products/img2-uuid.png"
+    "image": "https://your-cdn-domain.com/products/img2-uuid.png"
   },
   {
     "id": 12,
     "product": 5,
-    "image": "products/img3-uuid.webp"
+    "image": "https://your-cdn-domain.com/products/img3-uuid.webp"
   }
 ]
 ```
