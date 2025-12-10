@@ -973,12 +973,28 @@ class ProductImageBulkS3CreateView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         created_images = serializer.save()
         
-        # Return the created images data
+        # Build full URLs for the images
+        from django.conf import settings
+        custom_domain = getattr(settings, 'AWS_S3_CUSTOM_DOMAIN', None)
+        
+        def get_full_url(image_field):
+            if not image_field:
+                return None
+            file_path = image_field.name if hasattr(image_field, 'name') else str(image_field)
+            if not file_path:
+                return None
+            if file_path.startswith('http://') or file_path.startswith('https://'):
+                return file_path
+            if custom_domain:
+                return f"https://{custom_domain}/{file_path}"
+            return file_path
+        
+        # Return the created images data with full URLs
         response_data = [
             {
                 'id': img.id,
                 'product': img.product_id,
-                'image': img.image.name if img.image else None
+                'image': get_full_url(img.image)
             }
             for img in created_images
         ]
