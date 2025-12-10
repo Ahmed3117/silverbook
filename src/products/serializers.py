@@ -5,6 +5,7 @@ from urllib.parse import urljoin
 from django.utils import timezone
 from django.db.models import Sum, F
 from django.db import transaction
+from django.conf import settings
 from accounts.models import User
 from .models import (
     BestProduct, Category, CouponDiscount, Discount, LovedProduct,
@@ -13,6 +14,41 @@ from .models import (
     SubCategory, Product, ProductImage, Rating, Pill, Subject, Teacher,
     PurchasedBook
 )
+
+
+def get_full_file_url(file_field, request=None):
+    """
+    Get the full URL for a file/image field.
+    Returns the complete URL including domain.
+    """
+    if not file_field:
+        return None
+    
+    # Get the file path/name
+    file_path = file_field.name if hasattr(file_field, 'name') else str(file_field)
+    
+    if not file_path:
+        return None
+    
+    # If already a full URL, return as-is
+    if file_path.startswith('http://') or file_path.startswith('https://'):
+        return file_path
+    
+    # Build full URL using S3 custom domain or request
+    custom_domain = getattr(settings, 'AWS_S3_CUSTOM_DOMAIN', None)
+    
+    if custom_domain:
+        # Use S3/R2 custom domain
+        return f"https://{custom_domain}/{file_path}"
+    elif request:
+        # Use request to build absolute URI
+        return request.build_absolute_uri(f"{settings.MEDIA_URL}{file_path}")
+    else:
+        # Fallback to MEDIA_URL
+        media_url = getattr(settings, 'MEDIA_URL', '/media/')
+        if media_url.startswith('http'):
+            return f"{media_url.rstrip('/')}/{file_path}"
+        return f"{media_url}{file_path}"
 
 class SubCategorySerializer(serializers.ModelSerializer):
     category_name = serializers.SerializerMethodField()
@@ -26,10 +62,14 @@ class SubCategorySerializer(serializers.ModelSerializer):
     
 class CategorySerializer(serializers.ModelSerializer):
     subcategories = SubCategorySerializer(many=True, read_only=True)
+    image = serializers.SerializerMethodField()
 
     class Meta:
         model = Category
         fields = ['id', 'name', 'image', 'subcategories']
+
+    def get_image(self, obj):
+        return get_full_file_url(obj.image, self.context.get('request'))
 
 class SubjectSerializer(serializers.ModelSerializer):
     class Meta:
@@ -38,12 +78,17 @@ class SubjectSerializer(serializers.ModelSerializer):
 
 class TeacherSerializer(serializers.ModelSerializer):
     subject_name = serializers.SerializerMethodField()
+    image = serializers.SerializerMethodField()
+
     class Meta:
         model = Teacher
         fields = ['id', 'name', 'bio','image','subject','subject_name' , 'facebook', 'instagram', 'twitter', 'youtube', 'linkedin', 'telegram', 'website','tiktok', 'whatsapp']
 
     def get_subject_name(self, obj):
         return obj.subject.name if obj.subject else None
+
+    def get_image(self, obj):
+        return get_full_file_url(obj.image, self.context.get('request'))
 
 class ProductDescriptionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -67,9 +112,14 @@ class BulkProductDescriptionSerializer(serializers.ListSerializer):
         return ProductDescription.objects.bulk_create(descriptions)
 
 class ProductImageSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+
     class Meta:
         model = ProductImage
-        fields = '__all__'
+        fields = ['id', 'product', 'image', 'created_at']
+
+    def get_image(self, obj):
+        return get_full_file_url(obj.image, self.context.get('request'))
 
 class ProductImageBulkUploadSerializer(serializers.Serializer):
     product = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all())
@@ -157,9 +207,11 @@ class ProductSerializer(serializers.ModelSerializer):
     sub_category_id = serializers.SerializerMethodField()
     sub_category_name = serializers.SerializerMethodField()
     
-    # Override file fields to accept S3 object keys (strings)
-    pdf_file = serializers.CharField(max_length=500, required=False, allow_blank=True, allow_null=True)
-    base_image = serializers.CharField(max_length=500, required=False, allow_blank=True, allow_null=True)
+    # Override file fields - accept strings on write, return full URLs on read
+    pdf_file = serializers.SerializerMethodField()
+    base_image = serializers.SerializerMethodField()
+    pdf_file_input = serializers.CharField(max_length=500, required=False, allow_blank=True, allow_null=True, write_only=True, source='pdf_file')
+    base_image_input = serializers.CharField(max_length=500, required=False, allow_blank=True, allow_null=True, write_only=True, source='base_image')
 
     class Meta:
         model = Product
@@ -168,11 +220,18 @@ class ProductSerializer(serializers.ModelSerializer):
             'category_id', 'category_name', 'subject_id' ,'subject_name', 'teacher_id','teacher_name','teacher_image', 
             'sub_category_id', 'sub_category_name', 'price', 'description', 'date_added', 'discounted_price',
             'has_discount', 'current_discount', 'discount_expiry', 'main_image', 'images', 'number_of_ratings',
-            'average_rating', 'descriptions', 'pdf_file', 'base_image', 'page_count', 'file_size_mb', 'language', 'is_available'
+            'average_rating', 'descriptions', 'pdf_file', 'base_image', 'pdf_file_input', 'base_image_input',
+            'page_count', 'file_size_mb', 'language', 'is_available'
         ]
         read_only_fields = [
             'product_number', 'date_added'
         ]
+
+    def get_pdf_file(self, obj):
+        return get_full_file_url(obj.pdf_file, self.context.get('request'))
+
+    def get_base_image(self, obj):
+        return get_full_file_url(obj.base_image, self.context.get('request'))
 
     def get_category_id(self, obj):
         return obj.category.id if obj.category else None
@@ -196,10 +255,7 @@ class ProductSerializer(serializers.ModelSerializer):
         return obj.teacher.name if obj.teacher else None
     def get_teacher_image(self, obj):
         if obj.teacher and obj.teacher.image:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.teacher.image.url)
-            return obj.teacher.image.url
+            return get_full_file_url(obj.teacher.image, self.context.get('request'))
         return None
 
     def get_discounted_price(self, obj):
@@ -247,12 +303,7 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def get_main_image(self, obj):
         main_image = obj.main_image()
-        if main_image and hasattr(main_image, 'url'):
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(main_image.url)
-            return main_image.url
-        return None
+        return get_full_file_url(main_image, self.context.get('request'))
 
     def get_number_of_ratings(self, obj):
         return obj.number_of_ratings()
@@ -346,13 +397,14 @@ class CouponCodeField(serializers.Field):
     def to_representation(self, value):
         return value.coupon
 
-class SpecialProductSerializer(serializers.ModelSerializer):
+class SpecialProductSerializerBase(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
     product_id = serializers.PrimaryKeyRelatedField(
         queryset=Product.objects.all(),
         source='product',
         write_only=True
     )
+    special_image = serializers.SerializerMethodField()
 
     class Meta:
         model = SpecialProduct
@@ -361,6 +413,9 @@ class SpecialProductSerializer(serializers.ModelSerializer):
             'order', 'is_active', 'created_at', 'updated_at'
         ]
         read_only_fields = ['created_at', 'updated_at']
+
+    def get_special_image(self, obj):
+        return get_full_file_url(obj.special_image, self.context.get('request'))
 
 
 class RatingSerializer(serializers.ModelSerializer):
@@ -451,6 +506,7 @@ class SpecialProductSerializer(serializers.ModelSerializer):
         source='product',
         write_only=True
     )
+    special_image = serializers.SerializerMethodField()
 
     class Meta:
         model = SpecialProduct
@@ -459,6 +515,9 @@ class SpecialProductSerializer(serializers.ModelSerializer):
             'order', 'is_active', 'created_at', 'updated_at'
         ]
         read_only_fields = ['created_at', 'updated_at']
+
+    def get_special_image(self, obj):
+        return get_full_file_url(obj.special_image, self.context.get('request'))
 
 
 class BestProductSerializer(serializers.ModelSerializer):

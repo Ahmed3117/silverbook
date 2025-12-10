@@ -1,18 +1,58 @@
 from django.db.models import Count, Sum, F
 from rest_framework import serializers
 from rest_framework.fields import ImageField
+from django.conf import settings
 
 from .models import User, UserProfileImage
 from products.models import Pill, PillItem, Product
 from django.db.models import Count, Sum, Case, When, Value, FloatField
 from django.db.models.functions import Coalesce
 
+
+def get_full_file_url(file_field, request=None):
+    """
+    Get the full URL for a file/image field.
+    Returns the complete URL including domain.
+    """
+    if not file_field:
+        return None
+    
+    # Get the file path/name
+    file_path = file_field.name if hasattr(file_field, 'name') else str(file_field)
+    
+    if not file_path:
+        return None
+    
+    # If already a full URL, return as-is
+    if file_path.startswith('http://') or file_path.startswith('https://'):
+        return file_path
+    
+    # Build full URL using S3 custom domain or request
+    custom_domain = getattr(settings, 'AWS_S3_CUSTOM_DOMAIN', None)
+    
+    if custom_domain:
+        # Use S3/R2 custom domain
+        return f"https://{custom_domain}/{file_path}"
+    elif request:
+        # Use request to build absolute URI
+        return request.build_absolute_uri(f"{settings.MEDIA_URL}{file_path}")
+    else:
+        # Fallback to MEDIA_URL
+        media_url = getattr(settings, 'MEDIA_URL', '/media/')
+        if media_url.startswith('http'):
+            return f"{media_url.rstrip('/')}/{file_path}"
+        return f"{media_url}{file_path}"
+
+
 class UserProfileImageSerializer(serializers.ModelSerializer):
-    image = ImageField(use_url=True) # Explicitly set use_url to True
+    image = serializers.SerializerMethodField()
 
     class Meta:
         model = UserProfileImage
         fields = ['id', 'image', 'created_at', 'updated_at']
+
+    def get_image(self, obj):
+        return get_full_file_url(obj.image, self.context.get('request'))
 
 class UserProfileImageCreateSerializer(serializers.ModelSerializer):
     class Meta:
