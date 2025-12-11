@@ -208,10 +208,8 @@ class ProductSerializer(serializers.ModelSerializer):
     sub_category_name = serializers.SerializerMethodField()
     
     # Override file fields - accept strings on write, return full URLs on read
-    pdf_file = serializers.SerializerMethodField()
-    base_image = serializers.SerializerMethodField()
-    pdf_file_input = serializers.CharField(max_length=500, required=False, allow_blank=True, allow_null=True, write_only=True, source='pdf_file')
-    base_image_input = serializers.CharField(max_length=500, required=False, allow_blank=True, allow_null=True, write_only=True, source='base_image')
+    pdf_file = serializers.CharField(max_length=500, required=False, allow_blank=True, allow_null=True)
+    base_image = serializers.CharField(max_length=500, required=False, allow_blank=True, allow_null=True)
 
     class Meta:
         model = Product
@@ -220,18 +218,31 @@ class ProductSerializer(serializers.ModelSerializer):
             'category_id', 'category_name', 'subject_id' ,'subject_name', 'teacher_id','teacher_name','teacher_image', 
             'sub_category_id', 'sub_category_name', 'price', 'description', 'date_added', 'discounted_price',
             'has_discount', 'current_discount', 'discount_expiry', 'main_image', 'images', 'number_of_ratings',
-            'average_rating', 'descriptions', 'pdf_file', 'base_image', 'pdf_file_input', 'base_image_input',
+            'average_rating', 'descriptions', 'pdf_file', 'base_image',
             'page_count', 'file_size_mb', 'language', 'is_available'
         ]
         read_only_fields = [
             'product_number', 'date_added'
         ]
 
-    def get_pdf_file(self, obj):
-        return get_full_file_url(obj.pdf_file, self.context.get('request'))
-
-    def get_base_image(self, obj):
-        return get_full_file_url(obj.base_image, self.context.get('request'))
+    def to_representation(self, instance):
+        """Override to return full URLs for file fields"""
+        ret = super().to_representation(instance)
+        request = self.context.get('request')
+        
+        # Convert pdf_file to full URL
+        if instance.pdf_file:
+            ret['pdf_file'] = get_full_file_url(instance.pdf_file, request)
+        else:
+            ret['pdf_file'] = None
+            
+        # Convert base_image to full URL
+        if instance.base_image:
+            ret['base_image'] = get_full_file_url(instance.base_image, request)
+        else:
+            ret['base_image'] = None
+            
+        return ret
 
     def get_category_id(self, obj):
         return obj.category.id if obj.category else None
