@@ -308,10 +308,10 @@ class UserDeviceSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserDevice
         fields = [
-            'id', 'device_token', 'device_name', 'ip_address', 'user_agent',
+            'id', 'device_id', 'device_name', 'ip_address', 'user_agent',
             'logged_in_at', 'last_used_at', 'is_active'
         ]
-        read_only_fields = ['device_token', 'logged_in_at', 'last_used_at']
+        read_only_fields = ['logged_in_at', 'last_used_at']
 
 
 class StudentDeviceListSerializer(serializers.ModelSerializer):
