@@ -163,7 +163,7 @@ EMAIL_HOST_PASSWORD = 'meczfpooichwkudl'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'accounts.authentication.MultiDeviceJWTAuthentication',  # Custom JWT auth with multi-device enforcement for students
     ],
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend'

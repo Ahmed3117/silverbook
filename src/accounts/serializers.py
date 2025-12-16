@@ -3,7 +3,7 @@ from rest_framework import serializers
 from rest_framework.fields import ImageField
 from django.conf import settings
 
-from .models import User, UserProfileImage
+from .models import User, UserProfileImage, UserDevice
 from products.models import Pill, PillItem, Product
 from django.db.models import Count, Sum, Case, When, Value, FloatField
 from django.db.models.functions import Coalesce
@@ -299,3 +299,42 @@ class UserOrderSerializer(serializers.ModelSerializer):
 
     def get_items_count(self, obj):
         return obj.items.count()
+
+
+# ============== Device Management Serializers ==============
+
+class UserDeviceSerializer(serializers.ModelSerializer):
+    """Serializer for viewing device information"""
+    class Meta:
+        model = UserDevice
+        fields = [
+            'id', 'device_token', 'device_name', 'ip_address', 'user_agent',
+            'logged_in_at', 'last_used_at', 'is_active'
+        ]
+        read_only_fields = ['device_token', 'logged_in_at', 'last_used_at']
+
+
+class StudentDeviceListSerializer(serializers.ModelSerializer):
+    """Serializer for listing student with their devices"""
+    devices = UserDeviceSerializer(many=True, read_only=True)
+    active_devices_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = User
+        fields = [
+            'id', 'username', 'name', 'max_allowed_devices',
+            'active_devices_count', 'devices'
+        ]
+    
+    def get_active_devices_count(self, obj):
+        return obj.devices.filter(is_active=True).count()
+
+
+class UpdateMaxDevicesSerializer(serializers.Serializer):
+    """Serializer for updating max allowed devices for a student"""
+    max_allowed_devices = serializers.IntegerField(min_value=1, max_value=10)
+
+
+class RemoveDeviceSerializer(serializers.Serializer):
+    """Serializer for removing a specific device"""
+    device_id = serializers.IntegerField()
