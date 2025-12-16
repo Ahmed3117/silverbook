@@ -138,7 +138,10 @@ class UserDevice(models.Model):
     """
     Tracks registered devices for students to enforce multi-device login limits.
     Each device gets a unique token that must be included in JWT for authentication.
-    Devices are identified by IP address - same IP = same device.
+    
+    Device identification priority:
+    1. device_id (from mobile app) - Most reliable, stays constant
+    2. ip_address (fallback) - Used if device_id not provided
     """
     user = models.ForeignKey(
         User,
@@ -150,6 +153,12 @@ class UserDevice(models.Model):
         unique=True,
         help_text="Unique token identifying this device session"
     )
+    device_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Unique device identifier from mobile app (Android ID / iOS identifierForVendor)"
+    )
     device_name = models.CharField(
         max_length=255,
         blank=True,
@@ -159,7 +168,7 @@ class UserDevice(models.Model):
     ip_address = models.GenericIPAddressField(
         null=True,
         blank=True,
-        help_text="IP address of the device"
+        help_text="IP address of the device (used as fallback if device_id not provided)"
     )
     user_agent = models.TextField(
         blank=True,
@@ -188,11 +197,11 @@ class UserDevice(models.Model):
         ordering = ['-last_used_at']
         verbose_name = 'User Device'
         verbose_name_plural = 'User Devices'
-        # Index for faster lookups by user + IP
         indexes = [
+            models.Index(fields=['user', 'device_id', 'is_active']),
             models.Index(fields=['user', 'ip_address', 'is_active']),
         ]
 
     def __str__(self):
-        ip_display = self.ip_address or 'No IP'
-        return f"{self.user.username} - {self.device_name or 'Unknown'} ({ip_display})"
+        identifier = self.device_id[:20] if self.device_id else self.ip_address or 'No ID'
+        return f"{self.user.username} - {self.device_name or 'Unknown'} ({identifier})"

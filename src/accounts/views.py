@@ -89,14 +89,18 @@ def signup(request):
         # Generate device token and register device for students
         device_token = None
         if user.user_type == 'student':
-            # Auto-detect device info from request
+            # Get device_id from request (sent by mobile app) - this is the most reliable identifier
+            device_id = request.data.get('device_id')  # Unique ID from mobile app
+            
+            # Auto-detect device info from request headers
             device_info_data = get_device_info_from_request(request)
             device_token = secrets.token_hex(32)  # 64 character hex string
             
-            # Create device record with auto-detected info
+            # Create device record
             UserDevice.objects.create(
                 user=user,
                 device_token=device_token,
+                device_id=device_id,  # From mobile app (may be None)
                 device_name=device_info_data['device_name'],
                 ip_address=device_info_data['ip_address'],
                 user_agent=device_info_data['user_agent'],
@@ -135,23 +139,47 @@ def signin(request):
         
         # Handle device registration for students
         if user.user_type == 'student':
-            # Auto-detect device info from request
+            # Get device_id from request (sent by mobile app) - most reliable identifier
+            device_id = request.data.get('device_id')  # Unique ID from mobile app
+            
+            # Auto-detect device info from request headers
             device_info_data = get_device_info_from_request(request)
             ip_address = device_info_data['ip_address']
             
-            # Check if this IP is already registered for this user
-            existing_device = UserDevice.objects.filter(
-                user=user,
-                is_active=True,
-                ip_address=ip_address
-            ).first()
+            # Try to find existing device
+            # Logic:
+            # - If device_id provided → match ONLY by device_id (most reliable, don't fall back)
+            # - If device_id NOT provided → match by IP address (fallback for web/old clients)
+            existing_device = None
+            
+            if device_id:
+                # If device_id provided, match ONLY by device_id
+                # Don't fall back to IP - this ensures each device_id is tracked separately
+                existing_device = UserDevice.objects.filter(
+                    user=user,
+                    is_active=True,
+                    device_id=device_id
+                ).first()
+            else:
+                # No device_id provided - use IP address as identifier
+                # This is the fallback for web clients or old mobile app versions
+                existing_device = UserDevice.objects.filter(
+                    user=user,
+                    is_active=True,
+                    ip_address=ip_address,
+                    device_id__isnull=True  # Only match devices without device_id
+                ).first()
             
             if existing_device:
-                # Same device (IP) logging in again - update last_used and return existing token
+                # Same device logging in again - update info and return existing token
                 existing_device.last_used_at = timezone.now()
                 existing_device.user_agent = device_info_data['user_agent']
                 existing_device.device_name = device_info_data['device_name']
-                existing_device.save(update_fields=['last_used_at', 'user_agent', 'device_name'])
+                existing_device.ip_address = ip_address  # Update IP (may have changed)
+                if device_id and not existing_device.device_id:
+                    # If device_id now provided but wasn't before, save it
+                    existing_device.device_id = device_id
+                existing_device.save(update_fields=['last_used_at', 'user_agent', 'device_name', 'ip_address', 'device_id'])
                 device_token = existing_device.device_token
             else:
                 # New device - check if limit is reached
@@ -170,10 +198,11 @@ def signin(request):
                 # Under limit - register new device
                 device_token = secrets.token_hex(32)  # 64 character hex string
                 
-                # Create new device record with auto-detected info
+                # Create new device record
                 UserDevice.objects.create(
                     user=user,
                     device_token=device_token,
+                    device_id=device_id,  # From mobile app (may be None)
                     device_name=device_info_data['device_name'],
                     ip_address=ip_address,
                     user_agent=device_info_data['user_agent'],
