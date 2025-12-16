@@ -11,6 +11,52 @@ from django.core.mail import send_mail
 from django.utils import timezone
 from datetime import timedelta
 import random
+import secrets
+
+
+def get_client_ip(request):
+    """Extract client IP address from request headers."""
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0].strip()
+    else:
+        ip = request.META.get('REMOTE_ADDR', 'Unknown')
+    return ip
+
+
+def get_device_info_from_request(request):
+    """
+    Extract device information from request headers.
+    Returns a dict with IP, User-Agent, and parsed device name.
+    """
+    ip_address = get_client_ip(request)
+    user_agent = request.META.get('HTTP_USER_AGENT', 'Unknown')
+    
+    # Parse User-Agent to get a friendly device name
+    device_name = 'Unknown Device'
+    if user_agent and user_agent != 'Unknown':
+        ua_lower = user_agent.lower()
+        if 'iphone' in ua_lower:
+            device_name = 'iPhone'
+        elif 'ipad' in ua_lower:
+            device_name = 'iPad'
+        elif 'android' in ua_lower:
+            device_name = 'Android Device'
+        elif 'windows' in ua_lower:
+            device_name = 'Windows PC'
+        elif 'macintosh' in ua_lower or 'mac os' in ua_lower:
+            device_name = 'Mac'
+        elif 'linux' in ua_lower:
+            device_name = 'Linux PC'
+        else:
+            # Use first part of user agent as fallback
+            device_name = user_agent[:50] if len(user_agent) > 50 else user_agent
+    
+    return {
+        'ip_address': ip_address,
+        'user_agent': user_agent,
+        'device_name': device_name
+    }
 from accounts.pagination import CustomPageNumberPagination
 from products.models import Pill, PillItem
 from django.db.models import Prefetch
@@ -21,9 +67,12 @@ from .serializers import (
     UserSerializer,
     PasswordResetRequestSerializer,
     PasswordResetConfirmSerializer,
-    UserOrderSerializer
+    UserOrderSerializer,
+    UserDeviceSerializer,
+    StudentDeviceListSerializer,
+    UpdateMaxDevicesSerializer,
 )
-from .models import User, UserProfileImage
+from .models import User, UserProfileImage, UserDevice
 from django.contrib.auth import update_session_auth_hash
 from rest_framework import generics
 from rest_framework.filters import SearchFilter, OrderingFilter
@@ -36,7 +85,31 @@ def signup(request):
     serializer = UserSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.save()
+        
+        # Generate device token and register device for students
+        device_token = None
+        if user.user_type == 'student':
+            # Auto-detect device info from request
+            device_info_data = get_device_info_from_request(request)
+            device_token = secrets.token_hex(32)  # 64 character hex string
+            
+            # Create device record with auto-detected info
+            UserDevice.objects.create(
+                user=user,
+                device_token=device_token,
+                device_name=device_info_data['device_name'],
+                ip_address=device_info_data['ip_address'],
+                user_agent=device_info_data['user_agent'],
+                is_active=True
+            )
+        
+        # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
+        
+        # Add device_token to JWT payload for students
+        if device_token:
+            refresh['device_token'] = device_token
+        
         user_data = serializer.data
         user_data['is_admin'] = user.is_staff or user.is_superuser
         
@@ -58,7 +131,62 @@ def signin(request):
         return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
     try:
+        device_token = None
+        
+        # Handle device registration for students
+        if user.user_type == 'student':
+            # Auto-detect device info from request
+            device_info_data = get_device_info_from_request(request)
+            ip_address = device_info_data['ip_address']
+            
+            # Check if this IP is already registered for this user
+            existing_device = UserDevice.objects.filter(
+                user=user,
+                is_active=True,
+                ip_address=ip_address
+            ).first()
+            
+            if existing_device:
+                # Same device (IP) logging in again - update last_used and return existing token
+                existing_device.last_used_at = timezone.now()
+                existing_device.user_agent = device_info_data['user_agent']
+                existing_device.device_name = device_info_data['device_name']
+                existing_device.save(update_fields=['last_used_at', 'user_agent', 'device_name'])
+                device_token = existing_device.device_token
+            else:
+                # New device - check if limit is reached
+                active_devices_count = UserDevice.objects.filter(user=user, is_active=True).count()
+                
+                if active_devices_count >= user.max_allowed_devices:
+                    # Limit reached - block login from new device
+                    return Response({
+                        'error': 'لقد تجاوزت العدد المسموح به من الأجهزة لتسجيل الدخول إلى حسابك',
+                        'error_en': 'You have exceeded the allowed number of devices to login to your account',
+                        'code': 'device_limit_exceeded',
+                        'max_allowed_devices': user.max_allowed_devices,
+                        'current_devices_count': active_devices_count
+                    }, status=status.HTTP_403_FORBIDDEN)
+                
+                # Under limit - register new device
+                device_token = secrets.token_hex(32)  # 64 character hex string
+                
+                # Create new device record with auto-detected info
+                UserDevice.objects.create(
+                    user=user,
+                    device_token=device_token,
+                    device_name=device_info_data['device_name'],
+                    ip_address=ip_address,
+                    user_agent=device_info_data['user_agent'],
+                    is_active=True
+                )
+        
+        # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
+        
+        # Add device_token to JWT payload for students
+        if device_token:
+            refresh['device_token'] = device_token
+        
         # Pass the request object into the serializer's context
         serializer = UserSerializer(user, context={'request': request})
         user_data = serializer.data
@@ -332,7 +460,134 @@ class AdminUserDetailView(generics.RetrieveAPIView):
     lookup_field = 'pk'
 
 
+# ============== Device Management Views (Admin) ==============
+
+class StudentDeviceListView(generics.ListAPIView):
+    """
+    List all students with their devices.
+    Admin can see all registered devices for each student.
+    """
+    serializer_class = StudentDeviceListSerializer
+    permission_classes = [IsAdminUser]
+    filter_backends = [SearchFilter, OrderingFilter, DjangoFilterBackend]
+    search_fields = ['username', 'name']
+    ordering_fields = ['created_at', 'username', 'name']
+    
+    def get_queryset(self):
+        return User.objects.filter(user_type='student').prefetch_related('devices').order_by('-created_at')
 
 
+class StudentDeviceDetailView(generics.RetrieveAPIView):
+    """
+    Get detailed device information for a specific student.
+    """
+    serializer_class = StudentDeviceListSerializer
+    permission_classes = [IsAdminUser]
+    
+    def get_queryset(self):
+        return User.objects.filter(user_type='student').prefetch_related('devices')
 
+
+@api_view(['PATCH'])
+@permission_classes([IsAdminUser])
+def update_student_max_devices(request, pk):
+    """
+    Update the maximum number of allowed devices for a specific student.
+    Admin can increase or decrease the limit.
+    """
+    try:
+        student = User.objects.get(pk=pk, user_type='student')
+    except User.DoesNotExist:
+        return Response({'error': 'Student not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    serializer = UpdateMaxDevicesSerializer(data=request.data)
+    if serializer.is_valid():
+        new_max = serializer.validated_data['max_allowed_devices']
+        student.max_allowed_devices = new_max
+        student.save(update_fields=['max_allowed_devices'])
+        
+        # If new max is less than current active devices, deactivate oldest ones
+        active_devices = UserDevice.objects.filter(user=student, is_active=True).order_by('last_used_at')
+        active_count = active_devices.count()
+        
+        if active_count > new_max:
+            # Deactivate oldest devices to match new limit
+            devices_to_deactivate = active_devices[:active_count - new_max]
+            for device in devices_to_deactivate:
+                device.is_active = False
+                device.save(update_fields=['is_active'])
+        
+        return Response({
+            'message': f'Max devices updated to {new_max}',
+            'max_allowed_devices': new_max,
+            'active_devices_count': UserDevice.objects.filter(user=student, is_active=True).count()
+        })
+    
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAdminUser])
+def remove_student_device(request, pk, device_id):
+    """
+    Remove (delete) a specific device from a student.
+    This will log out that device immediately (next API call will fail).
+    """
+    try:
+        student = User.objects.get(pk=pk, user_type='student')
+    except User.DoesNotExist:
+        return Response({'error': 'Student not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    try:
+        device = UserDevice.objects.get(pk=device_id, user=student)
+    except UserDevice.DoesNotExist:
+        return Response({'error': 'Device not found for this student'}, status=status.HTTP_404_NOT_FOUND)
+    
+    device_name = device.device_name
+    device.delete()
+    
+    return Response({
+        'message': f'Device "{device_name}" has been removed',
+        'active_devices_count': UserDevice.objects.filter(user=student, is_active=True).count()
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAdminUser])
+def remove_all_student_devices(request, pk):
+    """
+    Remove all devices from a student, forcing them to login again.
+    """
+    try:
+        student = User.objects.get(pk=pk, user_type='student')
+    except User.DoesNotExist:
+        return Response({'error': 'Student not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    deleted_count = UserDevice.objects.filter(user=student).delete()[0]
+    
+    return Response({
+        'message': f'All {deleted_count} device(s) have been removed',
+        'active_devices_count': 0
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_devices(request):
+    """
+    Get current user's registered devices (for students to see their own devices).
+    """
+    user = request.user
+    
+    if user.user_type != 'student':
+        return Response({'message': 'Device tracking is only for students'}, status=status.HTTP_200_OK)
+    
+    devices = UserDevice.objects.filter(user=user, is_active=True)
+    serializer = UserDeviceSerializer(devices, many=True)
+    
+    return Response({
+        'max_allowed_devices': user.max_allowed_devices,
+        'active_devices_count': devices.count(),
+        'devices': serializer.data
+    })
 

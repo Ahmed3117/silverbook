@@ -25,6 +25,16 @@ urlpatterns = [
     # user analysis
     path('dashboard/users/', views.AdminUserListView.as_view(), name='admin-user-list'),
     path('dashboard/users/<int:pk>/', views.AdminUserDetailView.as_view(), name='admin-user-detail'),
+    
+    # Device Management (Admin)
+    path('dashboard/students/devices/', views.StudentDeviceListView.as_view(), name='student-device-list'),
+    path('dashboard/students/<int:pk>/devices/', views.StudentDeviceDetailView.as_view(), name='student-device-detail'),
+    path('dashboard/students/<int:pk>/max-devices/', views.update_student_max_devices, name='update-student-max-devices'),
+    path('dashboard/students/<int:pk>/devices/<int:device_id>/remove/', views.remove_student_device, name='remove-student-device'),
+    path('dashboard/students/<int:pk>/devices/remove-all/', views.remove_all_student_devices, name='remove-all-student-devices'),
+    
+    # Student's own devices
+    path('my-devices/', views.my_devices, name='my-devices'),
 ]
 
 
