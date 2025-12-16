@@ -94,6 +94,12 @@ class User(AbstractUser):
         related_name='users'
     )
     created_at = models.DateTimeField(auto_now_add=True,null=True, blank=True)
+    
+    # Multi-device login control for students
+    max_allowed_devices = models.PositiveIntegerField(
+        default=2,
+        help_text="Maximum number of devices allowed for this student (admin can adjust per student)"
+    )
 
     def __str__(self):
         return self.name if self.name else self.username
@@ -128,10 +134,65 @@ class User(AbstractUser):
         ordering = ['-created_at']
 
 
+class UserDevice(models.Model):
+    """
+    Tracks registered devices for students to enforce multi-device login limits.
+    Each device gets a unique token that must be included in JWT for authentication.
+    Devices are identified by IP address - same IP = same device.
+    """
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='devices'
+    )
+    device_token = models.CharField(
+        max_length=64,
+        unique=True,
+        help_text="Unique token identifying this device session"
+    )
+    device_name = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Auto-detected device type (e.g., 'iPhone', 'Android Device', 'Windows PC')"
+    )
+    ip_address = models.GenericIPAddressField(
+        null=True,
+        blank=True,
+        help_text="IP address of the device"
+    )
+    user_agent = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Browser/App User-Agent string"
+    )
+    device_info = models.JSONField(
+        blank=True,
+        null=True,
+        help_text="Additional device information (legacy field, kept for compatibility)"
+    )
+    logged_in_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="When this device was first logged in"
+    )
+    last_used_at = models.DateTimeField(
+        auto_now=True,
+        help_text="Last time this device made an API request"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Whether this device is currently active (can be disabled by admin)"
+    )
 
+    class Meta:
+        ordering = ['-last_used_at']
+        verbose_name = 'User Device'
+        verbose_name_plural = 'User Devices'
+        # Index for faster lookups by user + IP
+        indexes = [
+            models.Index(fields=['user', 'ip_address', 'is_active']),
+        ]
 
-
-
-
-
-
+    def __str__(self):
+        ip_display = self.ip_address or 'No IP'
+        return f"{self.user.username} - {self.device_name or 'Unknown'} ({ip_display})"
