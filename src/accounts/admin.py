@@ -49,18 +49,24 @@ class UserProfileImageAdmin(admin.ModelAdmin):
 
 @admin.register(UserDevice)
 class UserDeviceAdmin(admin.ModelAdmin):
-    list_display = ('user', 'device_name', 'ip_address', 'is_active', 'logged_in_at', 'last_used_at')
+    list_display = ('user', 'device_name', 'short_device_id', 'ip_address', 'is_active', 'logged_in_at', 'last_used_at')
     list_filter = ('is_active', 'device_name', 'logged_in_at', 'last_used_at')
-    search_fields = ('user__username', 'user__name', 'device_name', 'ip_address', 'device_token')
-    readonly_fields = ('device_token', 'ip_address', 'user_agent', 'logged_in_at', 'last_used_at')
+    search_fields = ('user__username', 'user__name', 'device_name', 'ip_address', 'device_id', 'device_token')
+    readonly_fields = ('device_token', 'device_id', 'ip_address', 'user_agent', 'logged_in_at', 'last_used_at')
     raw_id_fields = ('user',)
     ordering = ('-last_used_at',)
     
     fieldsets = (
-        ('Device Info', {'fields': ('user', 'device_name', 'ip_address', 'user_agent')}),
+        ('Device Info', {'fields': ('user', 'device_name', 'device_id', 'ip_address', 'user_agent')}),
         ('Session', {'fields': ('device_token', 'is_active')}),
         ('Timestamps', {'fields': ('logged_in_at', 'last_used_at')}),
     )
+    
+    @admin.display(description='Device ID')
+    def short_device_id(self, obj):
+        if obj.device_id:
+            return f"{obj.device_id[:15]}..." if len(obj.device_id) > 15 else obj.device_id
+        return "IP Only"
     
     actions = ['deactivate_devices', 'activate_devices', 'delete_selected']
     
