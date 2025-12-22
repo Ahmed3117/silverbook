@@ -346,6 +346,7 @@ class ProductImage(models.Model):
 
     def __str__(self):
         return f"Image for {self.product.name}"
+
 class ProductDescription(models.Model):
     product = models.ForeignKey(
         Product, 
