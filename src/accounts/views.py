@@ -89,19 +89,23 @@ def signup(request):
         # Generate device token and register device for students
         device_token = None
         if user.user_type == 'student':
-            # Get device_id from request (sent by mobile app) - this is the most reliable identifier
+            # Get device info from request body (sent by mobile app)
             device_id = request.data.get('device_id')  # Unique ID from mobile app
+            device_name_from_request = request.data.get('device_name')  # e.g., "iPhone 15 Pro", "Samsung Galaxy S24"
             
-            # Auto-detect device info from request headers
+            # Auto-detect device info from request headers (fallback)
             device_info_data = get_device_info_from_request(request)
             device_token = secrets.token_hex(32)  # 64 character hex string
+            
+            # Use device_name from request if provided, otherwise use auto-detected
+            final_device_name = device_name_from_request or device_info_data['device_name']
             
             # Create device record
             UserDevice.objects.create(
                 user=user,
                 device_token=device_token,
                 device_id=device_id,  # From mobile app (may be None)
-                device_name=device_info_data['device_name'],
+                device_name=final_device_name,
                 ip_address=device_info_data['ip_address'],
                 user_agent=device_info_data['user_agent'],
                 is_active=True
@@ -139,12 +143,16 @@ def signin(request):
         
         # Handle device registration for students
         if user.user_type == 'student':
-            # Get device_id from request (sent by mobile app) - most reliable identifier
+            # Get device info from request body (sent by mobile app)
             device_id = request.data.get('device_id')  # Unique ID from mobile app
+            device_name_from_request = request.data.get('device_name')  # e.g., "iPhone 15 Pro", "Samsung Galaxy S24"
             
-            # Auto-detect device info from request headers
+            # Auto-detect device info from request headers (fallback)
             device_info_data = get_device_info_from_request(request)
             ip_address = device_info_data['ip_address']
+            
+            # Use device_name from request if provided, otherwise use auto-detected
+            final_device_name = device_name_from_request or device_info_data['device_name']
             
             # Try to find existing device
             # Logic:
@@ -174,7 +182,7 @@ def signin(request):
                 # Same device logging in again - update info and return existing token
                 existing_device.last_used_at = timezone.now()
                 existing_device.user_agent = device_info_data['user_agent']
-                existing_device.device_name = device_info_data['device_name']
+                existing_device.device_name = final_device_name  # Use provided name or auto-detected
                 existing_device.ip_address = ip_address  # Update IP (may have changed)
                 if device_id and not existing_device.device_id:
                     # If device_id now provided but wasn't before, save it
@@ -203,7 +211,7 @@ def signin(request):
                     user=user,
                     device_token=device_token,
                     device_id=device_id,  # From mobile app (may be None)
-                    device_name=device_info_data['device_name'],
+                    device_name=final_device_name,  # Use provided name or auto-detected
                     ip_address=ip_address,
                     user_agent=device_info_data['user_agent'],
                     is_active=True
@@ -399,7 +407,7 @@ def change_password(request):
 #^ ---------------------------------------------------- Dashboard ---------------------------- ^#
 
 @api_view(['POST'])
-# @permission_classes([IsAdminUser])
+@permission_classes([IsAdminUser])
 def create_admin_user(request):
     serializer = UserSerializer(data=request.data)
     if serializer.is_valid():
@@ -466,14 +474,14 @@ class UserProfileImageListCreateView(generics.ListCreateAPIView):
 class UserProfileImageRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = UserProfileImage.objects.all()
     serializer_class = UserProfileImageSerializer
-    # permission_classes = [IsAdminUser]
+    permission_classes = [IsAdminUser]
 
 
 # user analysis
 
 class AdminUserListView(generics.ListAPIView):
     serializer_class = UserSerializer
-    # permission_classes = [IsAdminUser]
+    permission_classes = [IsAdminUser]
     queryset = User.objects.all().order_by('-created_at')
     
     filter_backends = [SearchFilter, OrderingFilter,DjangoFilterBackend]
@@ -484,7 +492,7 @@ class AdminUserListView(generics.ListAPIView):
 
 class AdminUserDetailView(generics.RetrieveAPIView):
     serializer_class = UserSerializer
-    # permission_classes = [IsAdminUser]
+    permission_classes = [IsAdminUser]
     queryset = User.objects.all()
     lookup_field = 'pk'
 
