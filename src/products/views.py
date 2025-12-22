@@ -910,7 +910,7 @@ class ProductListCreateView(generics.ListCreateAPIView):
     filterset_class = ProductFilter
     search_fields = ['name', 'category__name', 'description']
     pagination_class = CustomPageNumberPagination
-    permission_classes = [AllowAny]  # Changed for testing - change back to IsAdminUser in production
+    permission_classes = [IsAdminUser]  # Changed for testing - change back to IsAdminUser in production
 
 class ProductListBreifedView(generics.ListCreateAPIView):
     queryset = Product.objects.all()
@@ -965,7 +965,7 @@ class ProductImageBulkS3CreateView(generics.CreateAPIView):
         ]
     }
     """
-    permission_classes = [AllowAny]  # Allow any user for testing - change to IsAdminUser in production
+    permission_classes = [IsAdminUser]  # Allow any user for testing - change to IsAdminUser in production
     parser_classes = [JSONParser]
 
     def post(self, request, *args, **kwargs):
@@ -1600,7 +1600,7 @@ class GeneratePresignedUploadUrlView(APIView):
         "file_type": "application/pdf"
     }
     """
-    permission_classes = [AllowAny]  # Allow any user for testing - change to IsAuthenticated in production
+    permission_classes = [IsAuthenticated]  # Allow any user for testing - change to IsAuthenticated in production
     parser_classes = [JSONParser]
     
     def post(self, request):
