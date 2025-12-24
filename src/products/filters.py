@@ -7,7 +7,6 @@ from django.utils import timezone
 class ProductFilter(filters.FilterSet):
     price_min = filters.NumberFilter(method='filter_by_discounted_price_min')
     price_max = filters.NumberFilter(method='filter_by_discounted_price_max')
-    color = filters.CharFilter(method='filter_by_color')
     size = filters.CharFilter(method='filter_by_size')
     has_images = filters.BooleanFilter(method='filter_has_images')
 
@@ -86,9 +85,6 @@ class ProductFilter(filters.FilterSet):
         )
 
         return queryset.filter(final_price__lte=value).distinct()
-
-    def filter_by_color(self, queryset, name, value):
-        return queryset.filter(availabilities__color__name__iexact=value).distinct()
 
     def filter_by_size(self, queryset, name, value):
         return queryset.filter(availabilities__size__iexact=value).distinct()
