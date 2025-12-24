@@ -511,7 +511,7 @@ class StudentDeviceListView(generics.ListAPIView):
     ordering_fields = ['created_at', 'username', 'name']
     
     def get_queryset(self):
-        return User.objects.filter(user_type='student').prefetch_related('devices').order_by('-created_at')
+        return User.objects.filter(user_type='student', is_staff=False, is_superuser=False).prefetch_related('devices').order_by('-created_at')
 
 
 class StudentDeviceDetailView(generics.RetrieveAPIView):
@@ -522,7 +522,7 @@ class StudentDeviceDetailView(generics.RetrieveAPIView):
     permission_classes = [IsAdminUser]
     
     def get_queryset(self):
-        return User.objects.filter(user_type='student').prefetch_related('devices')
+        return User.objects.filter(user_type='student', is_staff=False, is_superuser=False).prefetch_related('devices')
 
 
 @api_view(['PATCH'])

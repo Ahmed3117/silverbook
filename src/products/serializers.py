@@ -76,9 +76,20 @@ class SubjectSerializer(serializers.ModelSerializer):
         model = Subject
         fields = '__all__'
 
+    def validate_name(self, value):
+        """Ensure subject name is unique (case-insensitive)."""
+        # Exclude self when updating
+        qs = Subject.objects.filter(name__iexact=value)
+        if self.instance is not None:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError("توجد مادة بالفعل بنفس الاسم , اختر اسم اخر من فضلك .")
+        return value
+
 class TeacherSerializer(serializers.ModelSerializer):
     subject_name = serializers.SerializerMethodField()
-    image = serializers.SerializerMethodField()
+    # Make image writable for uploads, but serialize as full URL on read
+    image = serializers.ImageField(required=False, allow_null=True, use_url=False)
 
     class Meta:
         model = Teacher
@@ -86,9 +97,14 @@ class TeacherSerializer(serializers.ModelSerializer):
 
     def get_subject_name(self, obj):
         return obj.subject.name if obj.subject else None
-
-    def get_image(self, obj):
-        return get_full_file_url(obj.image, self.context.get('request'))
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        request = self.context.get('request')
+        if instance and getattr(instance, 'image', None):
+            ret['image'] = get_full_file_url(instance.image, request)
+        else:
+            ret['image'] = None
+        return ret
 
 class ProductDescriptionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -415,7 +431,8 @@ class SpecialProductSerializerBase(serializers.ModelSerializer):
         source='product',
         write_only=True
     )
-    special_image = serializers.SerializerMethodField()
+    # Accept file uploads for special_image and return full URL on read
+    special_image = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = SpecialProduct
@@ -425,8 +442,14 @@ class SpecialProductSerializerBase(serializers.ModelSerializer):
         ]
         read_only_fields = ['created_at', 'updated_at']
 
-    def get_special_image(self, obj):
-        return get_full_file_url(obj.special_image, self.context.get('request'))
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        request = self.context.get('request')
+        if instance.special_image:
+            ret['special_image'] = get_full_file_url(instance.special_image, request)
+        else:
+            ret['special_image'] = None
+        return ret
 
 
 class RatingSerializer(serializers.ModelSerializer):
@@ -517,7 +540,7 @@ class SpecialProductSerializer(serializers.ModelSerializer):
         source='product',
         write_only=True
     )
-    special_image = serializers.SerializerMethodField()
+    special_image = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = SpecialProduct
@@ -527,8 +550,14 @@ class SpecialProductSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['created_at', 'updated_at']
 
-    def get_special_image(self, obj):
-        return get_full_file_url(obj.special_image, self.context.get('request'))
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        request = self.context.get('request')
+        if instance.special_image:
+            ret['special_image'] = get_full_file_url(instance.special_image, request)
+        else:
+            ret['special_image'] = None
+        return ret
 
 
 class BestProductSerializer(serializers.ModelSerializer):
