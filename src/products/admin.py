@@ -411,8 +411,9 @@ class PillAdmin(admin.ModelAdmin):
                         total_product_price += item_total
                         
                         # Build item description
-                        color_text = f" - {item.color.name}" if item.color else ""
-                        size_text = f" - Size: {item.size}" if item.size else ""
+                        color_name = getattr(getattr(item, 'color', None), 'name', '')
+                        color_text = f" - {color_name}" if color_name else ""
+                        size_text = f" - Size: {item.size}" if getattr(item, 'size', None) else ""
                         item_description = f"{product.name}{color_text}{size_text}"
                         item_description = item_description[:150]
                         
@@ -426,8 +427,8 @@ class PillAdmin(admin.ModelAdmin):
                             'product_id': product.id,
                             'product_number': product.product_number or '',
                             'original_price': original_price,
-                            'color': item.color.name if item.color else '',
-                            'size': item.size or '',
+                            'color': getattr(getattr(item, 'color', None), 'name', ''),
+                            'size': getattr(item, 'size', '') or '',
                             'line_total': item_total
                         })
                     

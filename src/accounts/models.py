@@ -70,7 +70,7 @@ class User(AbstractUser):
     otp = models.CharField(max_length=6, null=True, blank=True)
     otp_created_at = models.DateTimeField(null=True, blank=True)
     email = models.EmailField(blank=True, null=True, max_length=254)
-    user_type = models.CharField(max_length=20, choices=USER_TYPE_CHOICES, default="student", null=True, blank=True)
+    user_type = models.CharField(max_length=20, choices=USER_TYPE_CHOICES, null=True, blank=True)
     parent_phone = models.CharField(max_length=20, null=True, blank=True, help_text="Only applicable for students")
     year = models.CharField(
         max_length=20,

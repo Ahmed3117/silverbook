@@ -714,8 +714,9 @@ class CustomPillFilterBackend(filters.BaseFilterBackend):
 
 
 class PillItemListCreateView(generics.ListCreateAPIView):# gives error
+    # 'color' relation was removed — do not include it in select_related
     queryset = PillItem.objects.select_related(
-        'user', 'product', 'color', 'pill'
+        'user', 'product', 'pill'
     ).prefetch_related('product__images')
     serializer_class = AdminPillItemSerializer
     filter_backends = [CustomPillFilterBackend, OrderingFilter]
@@ -724,8 +725,9 @@ class PillItemListCreateView(generics.ListCreateAPIView):# gives error
     
 
 class PillItemRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    # 'color' relation was removed — do not include it in select_related
     queryset = PillItem.objects.select_related(
-        'user', 'product', 'color', 'pill'
+        'user', 'product', 'pill'
     )
     serializer_class = AdminPillItemSerializer
     lookup_field = 'pk'
@@ -892,6 +894,7 @@ class SubjectRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
 class TeacherListCreateView(generics.ListCreateAPIView):
     queryset = Teacher.objects.all()
     serializer_class = TeacherSerializer
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     filter_backends = [DjangoFilterBackend, rest_filters.SearchFilter]
     filterset_fields = ['subject']
     search_fields = ['name', 'subject__name']
@@ -900,6 +903,7 @@ class TeacherListCreateView(generics.ListCreateAPIView):
 class TeacherRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Teacher.objects.all()
     serializer_class = TeacherSerializer
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     permission_classes = [IsAdminUser]
     
 
@@ -1052,6 +1056,8 @@ class SpecialProductListCreateView(generics.ListCreateAPIView):
     search_fields = ['product__name', 'product__category__name']
     ordering_fields = ['order', 'created_at']
     permission_classes = [IsAdminUser]
+    # Allow multipart/form-data for file uploads
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def perform_create(self, serializer):
         serializer.save()
@@ -1060,6 +1066,7 @@ class SpecialProductRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIV
     queryset = SpecialProduct.objects.all()
     serializer_class = SpecialProductSerializer
     permission_classes = [IsAdminUser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
 class BestProductListCreateView(generics.ListCreateAPIView):
     queryset = BestProduct.objects.all()
