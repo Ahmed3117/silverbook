@@ -759,7 +759,7 @@ class CreatePaymentInvoiceView(APIView):
             logger.info(f"All items available for pill {pill_id}, proceeding with invoice creation")
             
             # Get active payment method from settings
-            active_method = getattr(settings, 'ACTIVE_PAYMENT_METHOD', 'shakeout').lower()
+            active_method = getattr(settings, 'ACTIVE_PAYMENT_METHOD', 'easypay').lower()
             logger.info(f"Active payment method: {active_method}")
             
             if active_method == 'easypay':

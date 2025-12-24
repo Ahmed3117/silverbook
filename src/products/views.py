@@ -713,7 +713,7 @@ class CustomPillFilterBackend(filters.BaseFilterBackend):
         return queryset
 
 
-class PillItemListCreateView(generics.ListCreateAPIView):
+class PillItemListCreateView(generics.ListCreateAPIView):# gives error
     queryset = PillItem.objects.select_related(
         'user', 'product', 'color', 'pill'
     ).prefetch_related('product__images')
