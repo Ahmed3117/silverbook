@@ -58,40 +58,39 @@ def _resolve_government_name(source) -> Optional[str]:
 
 
 def get_customer_profile(pill) -> Dict[str, str]:
-    """Build a unified customer profile for payment gateways."""
+    """Build a unified customer profile for payment gateways.
+
+    Changes:
+    - Removed support for `pilladdress` (model removed).
+    - Prefer `user.username` as the phone (frontend ensures username is a phone number).
+      Use `parent_phone` only when `username` is not a valid local phone.
+    """
     user = getattr(pill, "user", None)
-    pill_address = getattr(pill, "pilladdress", None)
 
-    # Prefer pill address data, then fall back to user profile
-    full_name = None
-    phone = None
-    email = None
-    address_line = None
-    government_name = None
+    # Full name: prefer user.name then username then default
+    full_name = getattr(user, "name", None) or getattr(user, "username", None) or DEFAULT_NAME
 
-    if pill_address:
-        full_name = getattr(pill_address, "name", None)
-        phone = getattr(pill_address, "phone", None)
-        email = getattr(pill_address, "email", None)
-        address_line = getattr(pill_address, "address", None)
-        government_name = getattr(pill_address, "government", None)
+    # Phone: prefer username if it's a valid local phone, otherwise fallback to parent_phone
+    def _is_valid_local_phone(value: Optional[str]) -> bool:
+        if not value:
+            return False
+        digits = re.sub(r"\D", "", value)
+        # Egyptian local mobile numbers: start with '01' and have 11 digits total (01XXXXXXXXX)
+        return bool(re.match(r"^01\d{9}$", digits))
 
-    if not full_name:
-        full_name = getattr(user, "name", None) or getattr(user, "username", DEFAULT_NAME)
-
-    if not phone:
+    username_phone = getattr(user, "username", None)
+    if _is_valid_local_phone(username_phone):
+        phone = username_phone
+    else:
         phone = getattr(user, "parent_phone", None)
 
-    if not email:
-        user_email = getattr(user, "email", None)
-        email = user_email or f"customer_{pill.id}@bookefay.com"
+    # Email fallback
+    user_email = getattr(user, "email", None)
+    email = user_email or f"customer_{getattr(pill, 'id', 'unknown')}@bookefay.com"
 
-    if not address_line:
-        government_name = government_name or _resolve_government_name(user)
-        gov_label = government_name or DEFAULT_COUNTRY
-        address_line = f"{DEFAULT_ADDRESS_SUFFIX} - {gov_label}"
-    else:
-        government_name = government_name or DEFAULT_COUNTRY
+    # Address / government
+    government_name = _resolve_government_name(user) or DEFAULT_COUNTRY
+    address_line = f"{DEFAULT_ADDRESS_SUFFIX} - {government_name}"
 
     phone_numbers = _normalize_phone(phone)
     name_parts = _split_name(full_name)
