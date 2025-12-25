@@ -3,6 +3,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny,IsAuthenticated,IsAdminUser
 from django_filters.rest_framework import DjangoFilterBackend
+from django_filters import rest_framework as filters
 from rest_framework.views import APIView
 from django.contrib.auth import authenticate
 from services.beon_service import send_beon_sms
@@ -113,18 +114,14 @@ def signup(request):
         
         # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
-        
+
         # Add device_token to JWT payload for students
         if device_token:
             refresh['device_token'] = device_token
-        
-        user_data = serializer.data
-        user_data['is_admin'] = user.is_staff or user.is_superuser
-        
+
         return Response({
             'refresh': str(refresh),
             'access': str(refresh.access_token),
-            'user': user_data
         }, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -137,64 +134,44 @@ def signin(request):
     user = authenticate(username=username, password=password)
     if not user:
         return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
-
     try:
         device_token = None
-        
-        # Handle device registration for students
+
+        # Handle device registration for students (same logic as before)
         if user.user_type == 'student':
-            # Get device info from request body (sent by mobile app)
-            device_id = request.data.get('device_id')  # Unique ID from mobile app
-            device_name_from_request = request.data.get('device_name')  # e.g., "iPhone 15 Pro", "Samsung Galaxy S24"
-            
-            # Auto-detect device info from request headers (fallback)
+            device_id = request.data.get('device_id')
+            device_name_from_request = request.data.get('device_name')
             device_info_data = get_device_info_from_request(request)
             ip_address = device_info_data['ip_address']
-            
-            # Use device_name from request if provided, otherwise use auto-detected
             final_device_name = device_name_from_request or device_info_data['device_name']
-            
-            # Try to find existing device
-            # Logic:
-            # - If device_id provided → match ONLY by device_id (most reliable, don't fall back)
-            # - If device_id NOT provided → match by IP address (fallback for web/old clients)
+
             existing_device = None
-            
             if device_id:
-                # If device_id provided, match ONLY by device_id
-                # Don't fall back to IP - this ensures each device_id is tracked separately
                 existing_device = UserDevice.objects.filter(
                     user=user,
                     is_active=True,
                     device_id=device_id
                 ).first()
             else:
-                # No device_id provided - use IP address as identifier
-                # This is the fallback for web clients or old mobile app versions
                 existing_device = UserDevice.objects.filter(
                     user=user,
                     is_active=True,
                     ip_address=ip_address,
-                    device_id__isnull=True  # Only match devices without device_id
+                    device_id__isnull=True
                 ).first()
-            
+
             if existing_device:
-                # Same device logging in again - update info and return existing token
                 existing_device.last_used_at = timezone.now()
                 existing_device.user_agent = device_info_data['user_agent']
-                existing_device.device_name = final_device_name  # Use provided name or auto-detected
-                existing_device.ip_address = ip_address  # Update IP (may have changed)
+                existing_device.device_name = final_device_name
+                existing_device.ip_address = ip_address
                 if device_id and not existing_device.device_id:
-                    # If device_id now provided but wasn't before, save it
                     existing_device.device_id = device_id
                 existing_device.save(update_fields=['last_used_at', 'user_agent', 'device_name', 'ip_address', 'device_id'])
                 device_token = existing_device.device_token
             else:
-                # New device - check if limit is reached
                 active_devices_count = UserDevice.objects.filter(user=user, is_active=True).count()
-                
                 if active_devices_count >= user.max_allowed_devices:
-                    # Limit reached - block login from new device
                     return Response({
                         'error': 'لقد تجاوزت العدد المسموح به من الأجهزة لتسجيل الدخول إلى حسابك',
                         'error_en': 'You have exceeded the allowed number of devices to login to your account',
@@ -202,40 +179,54 @@ def signin(request):
                         'max_allowed_devices': user.max_allowed_devices,
                         'current_devices_count': active_devices_count
                     }, status=status.HTTP_403_FORBIDDEN)
-                
-                # Under limit - register new device
-                device_token = secrets.token_hex(32)  # 64 character hex string
-                
-                # Create new device record
+
+                device_token = secrets.token_hex(32)
                 UserDevice.objects.create(
                     user=user,
                     device_token=device_token,
-                    device_id=device_id,  # From mobile app (may be None)
-                    device_name=final_device_name,  # Use provided name or auto-detected
+                    device_id=device_id,
+                    device_name=final_device_name,
                     ip_address=ip_address,
                     user_agent=device_info_data['user_agent'],
                     is_active=True
                 )
-        
-        # Generate JWT tokens
+
         refresh = RefreshToken.for_user(user)
-        
-        # Add device_token to JWT payload for students
         if device_token:
             refresh['device_token'] = device_token
-        
-        # Pass the request object into the serializer's context
-        serializer = UserSerializer(user, context={'request': request})
-        user_data = serializer.data
-        user_data['is_admin'] = user.is_staff or user.is_superuser
 
         return Response({
             'refresh': str(refresh),
             'access': str(refresh.access_token),
-            'user': user_data
         })
     except Exception as e:
         return Response({'error': f'Token generation failed: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def signin_dashboard(request):
+    """Signin endpoint for staff/superusers (dashboard). Returns only tokens."""
+    username = request.data.get('username')
+    password = request.data.get('password')
+
+    user = authenticate(username=username, password=password)
+    if not user:
+        return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    # Only allow staff or superuser to use this endpoint
+    if not (user.is_staff or user.is_superuser):
+        return Response({'error': 'Not allowed'}, status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+        })
+    except Exception as e:
+        return Response({'error': f'Token generation failed: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -484,10 +475,18 @@ class AdminUserListView(generics.ListAPIView):
     permission_classes = [IsAdminUser]
     queryset = User.objects.all().order_by('-created_at')
     
-    filter_backends = [SearchFilter, OrderingFilter,DjangoFilterBackend]
+    # Use a custom FilterSet to allow filtering by multiple governments
+    class AdminUserFilter(filters.FilterSet):
+        government = filters.BaseInFilter(field_name='government', lookup_expr='in')
+
+        class Meta:
+            model = User
+            fields = ['is_staff', 'is_superuser', 'year', 'division', 'government']
+
+    filter_backends = [SearchFilter, OrderingFilter, DjangoFilterBackend]
     ordering_fields = ['created_at']
     search_fields = ['username', 'name', 'email', 'government']
-    filterset_fields = ['is_staff', 'is_superuser','year', 'division', 'government']
+    filterset_class = AdminUserFilter
 
 
 class AdminUserDetailView(generics.RetrieveAPIView):

@@ -34,23 +34,27 @@ from services.s3_service import s3_service
 class CategoryListView(generics.ListAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
+    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_class = CategoryFilter
     
 class SubCategoryListView(generics.ListAPIView):
     queryset = SubCategory.objects.all()
+    permission_classes = [IsAuthenticated]
     serializer_class = SubCategorySerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['category','category__type']
 
 class SubjectListView(generics.ListAPIView):
     queryset = Subject.objects.all()
+    permission_classes = [IsAuthenticated]
     serializer_class = SubjectSerializer
     filter_backends = [DjangoFilterBackend, rest_filters.SearchFilter]
     search_fields = ['name', ]
  
 class TeacherListView(generics.ListAPIView):
     queryset = Teacher.objects.all()
+    permission_classes = [IsAuthenticated]
     serializer_class = TeacherSerializer
     filter_backends = [DjangoFilterBackend, rest_filters.SearchFilter]
     filterset_fields = ['subject']
@@ -59,7 +63,7 @@ class TeacherListView(generics.ListAPIView):
 class TeacherDetailView(generics.RetrieveAPIView):
     queryset = Teacher.objects.all()
     serializer_class = TeacherSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     lookup_field = 'id'
 
     def get(self, request, *args, **kwargs):
@@ -69,6 +73,7 @@ class TeacherDetailView(generics.RetrieveAPIView):
 
 class ProductListView(generics.ListAPIView):
     queryset = Product.objects.all()
+    permission_classes = [IsAuthenticated]
     serializer_class = ProductSerializer
     filter_backends = [DjangoFilterBackend, rest_filters.SearchFilter]
     filterset_class = ProductFilter
@@ -77,25 +82,27 @@ class ProductListView(generics.ListAPIView):
 
 class ProductDetailView(generics.RetrieveAPIView):
     queryset = Product.objects.all()
+    permission_classes = [IsAuthenticated]
     serializer_class = ProductSerializer
     lookup_field = 'id'
 
 class Last10ProductsListView(generics.ListAPIView):
     queryset = Product.objects.all()
+    permission_classes = [IsAuthenticated]
     serializer_class = ProductSerializer
     filter_backends = [DjangoFilterBackend, rest_filters.SearchFilter]
     filterset_class = ProductFilter
 
 class ActiveSpecialProductsView(generics.ListAPIView):
     serializer_class = SpecialProductSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         return SpecialProduct.objects.filter(is_active=True).order_by('-order')
     
 class ActiveBestProductsView(generics.ListAPIView):
     serializer_class = BestProductSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         return BestProduct.objects.filter(is_active=True).order_by('-order')
@@ -103,7 +110,7 @@ class ActiveBestProductsView(generics.ListAPIView):
 
 
 class CombinedProductsView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     
     def get(self, request, *args, **kwargs):
         # Get limit parameter with default of 10
@@ -137,7 +144,7 @@ class CombinedProductsView(APIView):
         return serializer.data
 
 class SpecialBestProductsView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     
     def get(self, request, *args, **kwargs):
         # Get limit parameter with default of 10
@@ -193,7 +200,7 @@ class SpecialBestProductsView(APIView):
 
 
 class TeacherProductsView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     
     def get(self, request, teacher_id, *args, **kwargs):
         try:
@@ -295,7 +302,15 @@ class UserPillsView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Pill.objects.filter(user=self.request.user).order_by('-date_added')
+        # Allow filtering by pill status via query param `status`.
+        # Example: ?status=p  or ?status=p,i (comma-separated)
+        queryset = Pill.objects.filter(user=self.request.user).order_by('-date_added')
+        status_param = self.request.query_params.get('status')
+        if status_param:
+            statuses = [s.strip() for s in status_param.split(',') if s.strip()]
+            if statuses:
+                queryset = queryset.filter(status__in=statuses)
+        return queryset
 
 
 class PurchasedBookListView(generics.ListAPIView):
@@ -572,6 +587,7 @@ class LovedProductRetrieveDestroyView(generics.RetrieveDestroyAPIView):
 class NewArrivalsView(generics.ListAPIView):
     serializer_class = ProductSerializer
     filter_backends = [DjangoFilterBackend]
+    permission_classes = [IsAuthenticated]
     filterset_fields = ['category', 'sub_category']
 
     def get_queryset(self):
@@ -584,6 +600,7 @@ class NewArrivalsView(generics.ListAPIView):
 
 class BestSellersView(generics.ListAPIView):
     serializer_class = ProductSerializer
+    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['category', 'sub_category']
 
@@ -713,23 +730,23 @@ class CustomPillFilterBackend(filters.BaseFilterBackend):
         return queryset
 
 
-class PillItemListCreateView(generics.ListCreateAPIView):# gives error
-    # 'color' relation was removed — do not include it in select_related
+class PillItemListCreateView(generics.ListCreateAPIView):
     queryset = PillItem.objects.select_related(
         'user', 'product', 'pill'
     ).prefetch_related('product__images')
     serializer_class = AdminPillItemSerializer
+    permission_classes = [IsAuthenticated]
     filter_backends = [CustomPillFilterBackend, OrderingFilter]
     ordering_fields = ['date_added', 'quantity']
     ordering = ['-date_added']
     
 
 class PillItemRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
-    # 'color' relation was removed — do not include it in select_related
     queryset = PillItem.objects.select_related(
         'user', 'product', 'pill'
     )
     serializer_class = AdminPillItemSerializer
+    permission_classes = [IsAuthenticated]
     lookup_field = 'pk'
 
     def perform_destroy(self, instance):
@@ -814,24 +831,7 @@ class RemovePillItemView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class AdminLovedProductListCreateView(generics.ListCreateAPIView):
-    queryset = LovedProduct.objects.select_related(
-        'user', 'product'
-    ).prefetch_related('product__images')
-    serializer_class = AdminLovedProductSerializer
-    filter_backends = [DjangoFilterBackend, OrderingFilter]
-    filterset_fields = {
-        'user': ['exact'],
-        'product': ['exact'],
-        'created_at': ['gte', 'lte', 'exact']
-    }
-    ordering_fields = ['created_at']
-    ordering = ['-created_at']
 
-class AdminLovedProductRetrieveDestroyView(generics.RetrieveDestroyAPIView):
-    queryset = LovedProduct.objects.select_related('user', 'product')
-    serializer_class = AdminLovedProductSerializer
-    lookup_field = 'pk'
 
 
 
@@ -853,6 +853,26 @@ class AdminLovedProductRetrieveDestroyView(generics.RetrieveDestroyAPIView):
 
 
 # Admin Endpoints
+class AdminLovedProductListCreateView(generics.ListCreateAPIView):
+    queryset = LovedProduct.objects.select_related(
+        'user', 'product'
+    ).prefetch_related('product__images')
+    permission_classes = [IsAdminUser]
+    serializer_class = AdminLovedProductSerializer
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_fields = {
+        'user': ['exact'],
+        'product': ['exact'],
+        'created_at': ['gte', 'lte', 'exact']
+    }
+    ordering_fields = ['created_at']
+    ordering = ['-created_at']
+
+class AdminLovedProductRetrieveDestroyView(generics.RetrieveDestroyAPIView):
+    queryset = LovedProduct.objects.select_related('user', 'product')
+    serializer_class = AdminLovedProductSerializer
+    lookup_field = 'pk'
+    permission_classes = [IsAdminUser]
 
 class CategoryListCreateView(generics.ListCreateAPIView):
     queryset = Category.objects.all()
