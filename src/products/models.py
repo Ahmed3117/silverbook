@@ -286,6 +286,7 @@ class SpecialProduct(models.Model):
     )
     special_image = models.ImageField(
         upload_to='special_products/',
+        max_length=512,
         null=True,
         blank=True
     )

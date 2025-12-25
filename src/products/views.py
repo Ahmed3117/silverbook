@@ -34,23 +34,27 @@ from services.s3_service import s3_service
 class CategoryListView(generics.ListAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
+    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_class = CategoryFilter
     
 class SubCategoryListView(generics.ListAPIView):
     queryset = SubCategory.objects.all()
+    permission_classes = [IsAuthenticated]
     serializer_class = SubCategorySerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['category','category__type']
 
 class SubjectListView(generics.ListAPIView):
     queryset = Subject.objects.all()
+    permission_classes = [IsAuthenticated]
     serializer_class = SubjectSerializer
     filter_backends = [DjangoFilterBackend, rest_filters.SearchFilter]
     search_fields = ['name', ]
  
 class TeacherListView(generics.ListAPIView):
     queryset = Teacher.objects.all()
+    permission_classes = [IsAuthenticated]
     serializer_class = TeacherSerializer
     filter_backends = [DjangoFilterBackend, rest_filters.SearchFilter]
     filterset_fields = ['subject']
@@ -59,7 +63,7 @@ class TeacherListView(generics.ListAPIView):
 class TeacherDetailView(generics.RetrieveAPIView):
     queryset = Teacher.objects.all()
     serializer_class = TeacherSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     lookup_field = 'id'
 
     def get(self, request, *args, **kwargs):
@@ -69,6 +73,7 @@ class TeacherDetailView(generics.RetrieveAPIView):
 
 class ProductListView(generics.ListAPIView):
     queryset = Product.objects.all()
+    permission_classes = [IsAuthenticated]
     serializer_class = ProductSerializer
     filter_backends = [DjangoFilterBackend, rest_filters.SearchFilter]
     filterset_class = ProductFilter
@@ -77,25 +82,27 @@ class ProductListView(generics.ListAPIView):
 
 class ProductDetailView(generics.RetrieveAPIView):
     queryset = Product.objects.all()
+    permission_classes = [IsAuthenticated]
     serializer_class = ProductSerializer
     lookup_field = 'id'
 
 class Last10ProductsListView(generics.ListAPIView):
     queryset = Product.objects.all()
+    permission_classes = [IsAuthenticated]
     serializer_class = ProductSerializer
     filter_backends = [DjangoFilterBackend, rest_filters.SearchFilter]
     filterset_class = ProductFilter
 
 class ActiveSpecialProductsView(generics.ListAPIView):
     serializer_class = SpecialProductSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         return SpecialProduct.objects.filter(is_active=True).order_by('-order')
     
 class ActiveBestProductsView(generics.ListAPIView):
     serializer_class = BestProductSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         return BestProduct.objects.filter(is_active=True).order_by('-order')
@@ -103,7 +110,7 @@ class ActiveBestProductsView(generics.ListAPIView):
 
 
 class CombinedProductsView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     
     def get(self, request, *args, **kwargs):
         # Get limit parameter with default of 10
@@ -137,7 +144,7 @@ class CombinedProductsView(APIView):
         return serializer.data
 
 class SpecialBestProductsView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     
     def get(self, request, *args, **kwargs):
         # Get limit parameter with default of 10
@@ -193,16 +200,13 @@ class SpecialBestProductsView(APIView):
 
 
 class TeacherProductsView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     
     def get(self, request, teacher_id, *args, **kwargs):
         try:
             teacher = Teacher.objects.get(pk=teacher_id)
         except Teacher.DoesNotExist:
-            return Response(
-                {"error": "Teacher not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({'error': 'المعلم غير موجود'}, status=status.HTTP_400_BAD_REQUEST)
         
         # Get parameters with defaults
         limit = int(request.query_params.get('limit', 10))
@@ -295,7 +299,15 @@ class UserPillsView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Pill.objects.filter(user=self.request.user).order_by('-date_added')
+        # Allow filtering by pill status via query param `status`.
+        # Example: ?status=p  or ?status=p,i (comma-separated)
+        queryset = Pill.objects.filter(user=self.request.user).order_by('-date_added')
+        status_param = self.request.query_params.get('status')
+        if status_param:
+            statuses = [s.strip() for s in status_param.split(',') if s.strip()]
+            if statuses:
+                queryset = queryset.filter(status__in=statuses)
+        return queryset
 
 
 class PurchasedBookListView(generics.ListAPIView):
@@ -335,10 +347,7 @@ class PurchasedBookPDFDownloadView(APIView):
         
         # Check if product has a PDF file
         if not product.pdf_file:
-            return Response({
-                'success': False,
-                'error': 'This book does not have a PDF file available'
-            }, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'هذا الكتاب لا يحتوي على ملف PDF متاح.'}, status=status.HTTP_400_BAD_REQUEST)
         
         # Get the file key from the pdf_file field
         # The pdf_file.name contains the S3 key (e.g., 'pdfs/book.pdf')
@@ -360,10 +369,7 @@ class PurchasedBookPDFDownloadView(APIView):
             }, status=status.HTTP_200_OK)
         else:
             logger.error(f"Failed to generate PDF download URL for purchased book {purchased_book_id}: {result['error']}")
-            return Response({
-                'success': False,
-                'error': 'Failed to generate download URL. Please try again.'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': 'فشل إنشاء رابط التحميل، يرجى المحاولة لاحقًا.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ProductOwnedCheckView(APIView):
@@ -572,6 +578,7 @@ class LovedProductRetrieveDestroyView(generics.RetrieveDestroyAPIView):
 class NewArrivalsView(generics.ListAPIView):
     serializer_class = ProductSerializer
     filter_backends = [DjangoFilterBackend]
+    permission_classes = [IsAuthenticated]
     filterset_fields = ['category', 'sub_category']
 
     def get_queryset(self):
@@ -584,6 +591,7 @@ class NewArrivalsView(generics.ListAPIView):
 
 class BestSellersView(generics.ListAPIView):
     serializer_class = ProductSerializer
+    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['category', 'sub_category']
 
@@ -713,23 +721,23 @@ class CustomPillFilterBackend(filters.BaseFilterBackend):
         return queryset
 
 
-class PillItemListCreateView(generics.ListCreateAPIView):# gives error
-    # 'color' relation was removed — do not include it in select_related
+class PillItemListCreateView(generics.ListCreateAPIView):
     queryset = PillItem.objects.select_related(
         'user', 'product', 'pill'
     ).prefetch_related('product__images')
     serializer_class = AdminPillItemSerializer
+    permission_classes = [IsAuthenticated]
     filter_backends = [CustomPillFilterBackend, OrderingFilter]
     ordering_fields = ['date_added', 'quantity']
     ordering = ['-date_added']
     
 
 class PillItemRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
-    # 'color' relation was removed — do not include it in select_related
     queryset = PillItem.objects.select_related(
         'user', 'product', 'pill'
     )
     serializer_class = AdminPillItemSerializer
+    permission_classes = [IsAuthenticated]
     lookup_field = 'pk'
 
     def perform_destroy(self, instance):
@@ -756,11 +764,7 @@ class RemovePillItemView(APIView):
             try:
                 pill_item = pill.items.get(id=item_id)
             except pill.items.model.DoesNotExist:
-                return Response({
-                    'success': False,
-                    'error': 'العنصر غير موجود في هذه الفاتورة',
-                    'error_code': 'ITEM_NOT_FOUND'
-                }, status=status.HTTP_404_NOT_FOUND)
+                return Response({'error': 'العنصر غير موجود في هذه الفاتورة'}, status=status.HTTP_400_BAD_REQUEST)
             
             # Store item info for response
             removed_item_info = {
@@ -807,31 +811,10 @@ class RemovePillItemView(APIView):
             logger.error(f"Exception removing item {item_id} from pill {pill_id}: {str(e)}")
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
-            return Response({
-                'success': False,
-                'error': f'خطأ في الخادم: {str(e)}',
-                'error_code': 'SERVER_ERROR'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': 'حدث خطأ في الخادم، يرجى المحاولة لاحقًا.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class AdminLovedProductListCreateView(generics.ListCreateAPIView):
-    queryset = LovedProduct.objects.select_related(
-        'user', 'product'
-    ).prefetch_related('product__images')
-    serializer_class = AdminLovedProductSerializer
-    filter_backends = [DjangoFilterBackend, OrderingFilter]
-    filterset_fields = {
-        'user': ['exact'],
-        'product': ['exact'],
-        'created_at': ['gte', 'lte', 'exact']
-    }
-    ordering_fields = ['created_at']
-    ordering = ['-created_at']
 
-class AdminLovedProductRetrieveDestroyView(generics.RetrieveDestroyAPIView):
-    queryset = LovedProduct.objects.select_related('user', 'product')
-    serializer_class = AdminLovedProductSerializer
-    lookup_field = 'pk'
 
 
 
@@ -853,6 +836,26 @@ class AdminLovedProductRetrieveDestroyView(generics.RetrieveDestroyAPIView):
 
 
 # Admin Endpoints
+class AdminLovedProductListCreateView(generics.ListCreateAPIView):
+    queryset = LovedProduct.objects.select_related(
+        'user', 'product'
+    ).prefetch_related('product__images')
+    permission_classes = [IsAdminUser]
+    serializer_class = AdminLovedProductSerializer
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_fields = {
+        'user': ['exact'],
+        'product': ['exact'],
+        'created_at': ['gte', 'lte', 'exact']
+    }
+    ordering_fields = ['created_at']
+    ordering = ['-created_at']
+
+class AdminLovedProductRetrieveDestroyView(generics.RetrieveDestroyAPIView):
+    queryset = LovedProduct.objects.select_related('user', 'product')
+    serializer_class = AdminLovedProductSerializer
+    lookup_field = 'pk'
+    permission_classes = [IsAdminUser]
 
 class CategoryListCreateView(generics.ListCreateAPIView):
     queryset = Category.objects.all()
@@ -885,10 +888,46 @@ class SubjectListCreateView(generics.ListCreateAPIView):
     search_fields = ['name']
     permission_classes = [IsAdminUser]
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            errors = serializer.errors
+            # Prefer field-specific message for 'name', else join other messages
+            if isinstance(errors, dict):
+                if 'name' in errors and isinstance(errors['name'], (list, tuple)) and errors['name']:
+                    return Response({'error': errors['name'][0]}, status=status.HTTP_400_BAD_REQUEST)
+                # fallback: take first message found
+                for v in errors.values():
+                    if isinstance(v, (list, tuple)) and v:
+                        return Response({'error': v[0]}, status=status.HTTP_400_BAD_REQUEST)
+            # default: return joined str of errors
+            return Response({'error': str(errors)}, status=status.HTTP_400_BAD_REQUEST)
+
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
 class SubjectRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Subject.objects.all()
     serializer_class = SubjectSerializer
     permission_classes = [IsAdminUser]
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        if not serializer.is_valid():
+            errors = serializer.errors
+            if isinstance(errors, dict):
+                if 'name' in errors and isinstance(errors['name'], (list, tuple)) and errors['name']:
+                    return Response({'error': errors['name'][0]}, status=status.HTTP_400_BAD_REQUEST)
+                for v in errors.values():
+                    if isinstance(v, (list, tuple)) and v:
+                        return Response({'error': v[0]}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': str(errors)}, status=status.HTTP_400_BAD_REQUEST)
+
+        self.perform_update(serializer)
+        return Response(serializer.data)
     
 
 class TeacherListCreateView(generics.ListCreateAPIView):
@@ -1214,10 +1253,7 @@ def create_shakeout_invoice_view(request, pill_id):
                 pill.shakeout_created_at = None
                 pill.save(update_fields=['shakeout_invoice_id', 'shakeout_invoice_ref', 'shakeout_data', 'shakeout_created_at'])
             else:
-                return Response({
-                    'success': False,
-                    'error': 'Pill already has a Shake-out invoice',
-                    'data': {
+                return Response({'error': 'الفاتورة موجودة مسبقًا لهذه الفاتورة.' , 'data': {
                         'invoice_id': pill.shakeout_invoice_id,
                         'invoice_ref': pill.shakeout_invoice_ref,
                         'payment_url': pill.shakeout_payment_url,
@@ -1245,22 +1281,13 @@ def create_shakeout_invoice_view(request, pill_id):
                 }
             }, status=status.HTTP_201_CREATED)
         else:
-            return Response({
-                'success': False,
-                'error': 'Failed to create Shake-out invoice'
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'فشل إنشاء فاتورة الشيك آوت.'}, status=status.HTTP_400_BAD_REQUEST)
             
     except Pill.DoesNotExist:
-        return Response({
-            'success': False,
-            'error': 'Pill not found or access denied'
-        }, status=status.HTTP_404_NOT_FOUND)
+        return Response({'error': 'الفاتورة غير موجودة أو لا تملك صلاحية الوصول لها'}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         logger.error(f"Error creating Shake-out invoice for pill {pill_id}: {str(e)}")
-        return Response({
-            'success': False,
-            'error': str(e)
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({'error': 'حدث خطأ أثناء إنشاء الفاتورة، يرجى المحاولة لاحقًا.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class AddBooksToStudentView(APIView):
@@ -1282,16 +1309,10 @@ class AddBooksToStudentView(APIView):
         
         # Validate input
         if not user_id:
-            return Response({
-                'success': False,
-                'error': 'user_id is required'
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'حقل user_id مطلوب'}, status=status.HTTP_400_BAD_REQUEST)
         
         if not product_ids or not isinstance(product_ids, list):
-            return Response({
-                'success': False,
-                'error': 'product_ids must be a non-empty list'
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'حقل product_ids يجب أن يكون قائمة غير فارغة'}, status=status.HTTP_400_BAD_REQUEST)
         
         try:
             # Get the user
@@ -1302,10 +1323,7 @@ class AddBooksToStudentView(APIView):
             if products.count() != len(product_ids):
                 found_ids = list(products.values_list('id', flat=True))
                 missing_ids = [pid for pid in product_ids if pid not in found_ids]
-                return Response({
-                    'success': False,
-                    'error': f'Products not found: {missing_ids}'
-                }, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'error': f'المنتجات غير موجودة: {missing_ids}'}, status=status.HTTP_400_BAD_REQUEST)
             
             # Use transaction to ensure atomicity
             with transaction.atomic():
@@ -1379,16 +1397,10 @@ class AddBooksToStudentView(APIView):
                 }, status=status.HTTP_201_CREATED)
                 
         except User.DoesNotExist:
-            return Response({
-                'success': False,
-                'error': f'User with id {user_id} not found'
-            }, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': f'المستخدم ذو المعرف {user_id} غير موجود'}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(f"Error adding books to student: {str(e)}")
-            return Response({
-                'success': False,
-                'error': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': 'حدث خطأ أثناء إضافة الكتب، يرجى المحاولة لاحقًا.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class AdminPurchasedBookListCreateView(generics.ListCreateAPIView):
@@ -1431,28 +1443,16 @@ class AdminPurchasedBookListCreateView(generics.ListCreateAPIView):
         
         # Validate required fields
         if not user_id:
-            return Response({
-                'success': False,
-                'error': 'user is required'
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'حقل user_id مطلوب'}, status=status.HTTP_400_BAD_REQUEST)
         
         if not products:
-            return Response({
-                'success': False,
-                'error': 'products is required and must be a list'
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'حقل products مطلوب ويجب أن يكون قائمة'}, status=status.HTTP_400_BAD_REQUEST)
         
         if not isinstance(products, list):
-            return Response({
-                'success': False,
-                'error': 'products must be a list of product IDs'
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'حقل products يجب أن يكون قائمة من معرّفات المنتجات'}, status=status.HTTP_400_BAD_REQUEST)
         
         if len(products) == 0:
-            return Response({
-                'success': False,
-                'error': 'products list cannot be empty'
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'قائمة المنتجات لا يمكن أن تكون فارغة'}, status=status.HTTP_400_BAD_REQUEST)
         
         try:
             # Validate user exists
@@ -1473,10 +1473,7 @@ class AdminPurchasedBookListCreateView(generics.ListCreateAPIView):
             if product_objs.count() != len(products):
                 found_ids = list(product_objs.values_list('id', flat=True))
                 missing_ids = [pid for pid in products if pid not in found_ids]
-                return Response({
-                    'success': False,
-                    'error': f'Products not found: {missing_ids}'
-                }, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'error': f'المنتجات غير موجودة: {missing_ids}'}, status=status.HTTP_400_BAD_REQUEST)
             
             # Create purchased books
             created_books = []
@@ -1522,26 +1519,14 @@ class AdminPurchasedBookListCreateView(generics.ListCreateAPIView):
             }, status=status.HTTP_201_CREATED)
             
         except User.DoesNotExist:
-            return Response({
-                'success': False,
-                'error': f'User with id {user_id} not found'
-            }, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': f'المستخدم ذو المعرف {user_id} غير موجود'}, status=status.HTTP_400_BAD_REQUEST)
         except Pill.DoesNotExist:
-            return Response({
-                'success': False,
-                'error': f'Pill with id {pill_id} not found'
-            }, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': f'الفاتورة ذات المعرف {pill_id} غير موجودة'}, status=status.HTTP_400_BAD_REQUEST)
         except PillItem.DoesNotExist:
-            return Response({
-                'success': False,
-                'error': f'PillItem with id {pill_item_id} not found'
-            }, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': f'عنصر الفاتورة ذو المعرف {pill_item_id} غير موجود'}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(f"Error creating purchased books: {str(e)}")
-            return Response({
-                'success': False,
-                'error': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': 'حدث خطأ أثناء إنشاء السجلات، يرجى المحاولة لاحقًا.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class AdminUserPurchasedBooksView(generics.ListAPIView):
@@ -1617,18 +1602,12 @@ class GeneratePresignedUploadUrlView(APIView):
             file_category = request.data.get('file_category', 'uploads')  # 'pdf', 'image', or custom folder
             
             if not file_name:
-                return Response(
-                    {'success': False, 'error': 'file_name is required'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+                return Response({'error': 'حقل file_name مطلوب'}, status=status.HTTP_400_BAD_REQUEST)
             
             # Validate file category
             allowed_categories = ['pdf', 'image', 'uploads']
             if file_category not in allowed_categories:
-                return Response(
-                    {'success': False, 'error': f'file_category must be one of: {", ".join(allowed_categories)}'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+                return Response({'error': f'حقل file_category يجب أن يكون أحد القيم: {", ".join(allowed_categories)}'}, status=status.HTTP_400_BAD_REQUEST)
             
             # Generate a unique object key
             import uuid
@@ -1654,15 +1633,9 @@ class GeneratePresignedUploadUrlView(APIView):
             if result['success']:
                 return Response(result, status=status.HTTP_200_OK)
             else:
-                return Response(
-                    {'success': False, 'error': result.get('error', 'Failed to generate presigned URL')},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
+                return Response({'error': result.get('error', 'فشل إنشاء رابط التحميل')}, status=status.HTTP_400_BAD_REQUEST)
                 
         except Exception as e:
             logger.error(f"Error generating presigned URL: {str(e)}")
-            return Response(
-                {'success': False, 'error': str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return Response({'error': 'حدث خطأ أثناء إنشاء رابط التحميل، يرجى المحاولة لاحقًا.'}, status=status.HTTP_400_BAD_REQUEST)
 
