@@ -5,13 +5,13 @@ from .models import User, UserProfileImage, UserDevice
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    list_display = ('username', 'name', 'email', 'user_type', 'is_staff', 'max_allowed_devices', 'get_active_devices', 'get_profile_image_preview')
+    list_display = ('username', 'name', 'email', 'user_type', 'is_staff', 'max_allowed_devices', 'get_active_devices')
     list_filter = ('user_type', 'is_staff', 'is_superuser', 'is_active', 'groups', 'government', 'year')
     search_fields = ('username', 'name', 'email')
     ordering = ('-date_joined',)
     fieldsets = (
         (None, {'fields': ('username', 'password')}),
-        ('Personal info', {'fields': ('name', 'email', 'user_profile_image')}),
+        ('Personal info', {'fields': ('name', 'email')}),
         ('User Type Specifics', {'fields': ('user_type', 'year', 'parent_phone', 'division')}),
         ('Device Management', {'fields': ('max_allowed_devices',)}),
         ('Location', {'fields': ('government',)}),
@@ -21,11 +21,7 @@ class UserAdmin(BaseUserAdmin):
     )
     readonly_fields = ('last_login', 'date_joined', 'otp_created_at')
 
-    @admin.display(description='Profile Image')
-    def get_profile_image_preview(self, obj):
-        if obj.user_profile_image and obj.user_profile_image.image:
-            return format_html('<img src="{}" width="40" height="40" style="border-radius:50%;" />', obj.user_profile_image.image.url)
-        return "No Image"
+    # Profile image field removed from User model; no preview available
     
     @admin.display(description='Active Devices')
     def get_active_devices(self, obj):

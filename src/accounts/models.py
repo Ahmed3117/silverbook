@@ -86,13 +86,6 @@ class User(AbstractUser):
         blank=True
     )
     government = models.CharField(choices=GOVERNMENT_CHOICES, max_length=2, null=True, blank=True)
-    user_profile_image = models.ForeignKey(
-        UserProfileImage,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='users'
-    )
     created_at = models.DateTimeField(auto_now_add=True,null=True, blank=True)
     
     # Multi-device login control for students
