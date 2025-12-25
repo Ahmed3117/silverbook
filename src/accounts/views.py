@@ -77,7 +77,7 @@ from .models import User, UserProfileImage, UserDevice
 from django.contrib.auth import update_session_auth_hash
 from rest_framework import generics
 from rest_framework.filters import SearchFilter, OrderingFilter
-from django.db.models import Count
+from django.db.models import Count, Q
 
 
 @api_view(['POST'])
@@ -133,7 +133,7 @@ def signin(request):
 
     user = authenticate(username=username, password=password)
     if not user:
-        return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response({'error': 'بيانات الدخول غير صحيحة، من فضلك تحقق.'}, status=status.HTTP_400_BAD_REQUEST)
     try:
         device_token = None
 
@@ -172,13 +172,7 @@ def signin(request):
             else:
                 active_devices_count = UserDevice.objects.filter(user=user, is_active=True).count()
                 if active_devices_count >= user.max_allowed_devices:
-                    return Response({
-                        'error': 'لقد تجاوزت العدد المسموح به من الأجهزة لتسجيل الدخول إلى حسابك',
-                        'error_en': 'You have exceeded the allowed number of devices to login to your account',
-                        'code': 'device_limit_exceeded',
-                        'max_allowed_devices': user.max_allowed_devices,
-                        'current_devices_count': active_devices_count
-                    }, status=status.HTTP_403_FORBIDDEN)
+                    return Response({'error': 'لقد تجاوزت العدد المسموح به من الأجهزة لتسجيل الدخول إلى حسابك .'}, status=status.HTTP_400_BAD_REQUEST)
 
                 device_token = secrets.token_hex(32)
                 UserDevice.objects.create(
@@ -200,7 +194,7 @@ def signin(request):
             'access': str(refresh.access_token),
         })
     except Exception as e:
-        return Response({'error': f'Token generation failed: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({'error': 'فشل إنشاء رمز المصادقة.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['POST'])
@@ -212,11 +206,11 @@ def signin_dashboard(request):
 
     user = authenticate(username=username, password=password)
     if not user:
-        return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response({'error': 'بيانات الدخول غير صحيحة، من فضلك تحقق.'}, status=status.HTTP_400_BAD_REQUEST)
 
     # Only allow staff or superuser to use this endpoint
     if not (user.is_staff or user.is_superuser):
-        return Response({'error': 'Not allowed'}, status=status.HTTP_403_FORBIDDEN)
+        return Response({'error': 'غير مصرح بالدخول عبر هذا المسار.'}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
         refresh = RefreshToken.for_user(user)
@@ -225,7 +219,7 @@ def signin_dashboard(request):
             'access': str(refresh.access_token),
         })
     except Exception as e:
-        return Response({'error': f'Token generation failed: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({'error': 'فشل إنشاء رمز المصادقة.'}, status=status.HTTP_400_BAD_REQUEST)
     
 
 @api_view(['POST'])
@@ -237,7 +231,7 @@ def request_password_reset(request):
         try:
             user = User.objects.filter(username=username).first()
             if not user:
-                return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+                return Response({'error': 'المستخدم غير موجود'}, status=status.HTTP_400_BAD_REQUEST)
             
             otp = ''.join([str(random.randint(0, 9)) for _ in range(6)])
             user.otp = otp
@@ -251,13 +245,9 @@ def request_password_reset(request):
             if sms_response.get('success'):
                 return Response({'message': 'OTP sent to your phone via SMS'})
             else:
-                error_detail = sms_response.get('error') or sms_response.get('detail')
-                return Response(
-                    {'error': 'Failed to send OTP via SMS', 'detail': error_detail},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
+                return Response({'error': 'فشل إرسال رمز التحقق عبر الرسائل القصيرة.'}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({'error': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': 'حدث خطأ، يرجى المحاولة لاحقًا.'}, status=status.HTTP_400_BAD_REQUEST)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
@@ -272,10 +262,10 @@ def reset_password_confirm(request):
         try:
             user = User.objects.filter(username=username, otp=otp).first()
             if not user:
-                return Response({'error': 'Invalid OTP or username'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'error': 'رمز التحقق أو اسم المستخدم غير صحيح'}, status=status.HTTP_400_BAD_REQUEST)
             
             if user.otp_created_at < timezone.now() - timedelta(minutes=10):
-                return Response({'error': 'OTP expired'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'error': 'انتهت صلاحية رمز التحقق'}, status=status.HTTP_400_BAD_REQUEST)
             
             user.set_password(new_password)
             user.otp = None
@@ -284,7 +274,7 @@ def reset_password_confirm(request):
             
             return Response({'message': 'Password reset successful'})
         except Exception as e:
-            return Response({'error': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': 'حدث خطأ، يرجى المحاولة لاحقًا.'}, status=status.HTTP_400_BAD_REQUEST)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -304,10 +294,7 @@ class UpdateUserData(generics.UpdateAPIView):
         # Prevent students from changing their username
         if instance.user_type == 'student' and 'username' in request.data:
             if request.data['username'] != instance.username:
-                return Response(
-                    {'username': ['Students cannot change their username']},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+                return Response({'error': 'لا يمكن للطلاب تغيير اسم المستخدم'}, status=status.HTTP_400_BAD_REQUEST)
         
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
@@ -349,10 +336,7 @@ class DeleteAccountView(APIView):
         user = request.user
 
         if user.is_staff or user.is_superuser:
-            return Response(
-                {'detail': 'Admin accounts cannot be deleted via this endpoint.'},
-                status=status.HTTP_403_FORBIDDEN
-            )
+            return Response({'error': 'لا يمكن حذف حسابات المدير عبر هذا المسار.'}, status=status.HTTP_400_BAD_REQUEST)
 
         username = user.username
         user.delete()
@@ -376,10 +360,7 @@ def change_password(request):
         
         # Verify old password
         if not user.check_password(old_password):
-            return Response(
-                {'error': 'Old password is incorrect'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({'error': 'كلمة المرور القديمة غير صحيحة'}, status=status.HTTP_400_BAD_REQUEST)
         
         # Set new password
         user.set_password(new_password)
@@ -404,10 +385,13 @@ def create_admin_user(request):
     if serializer.is_valid():
         user = serializer.save(is_staff=True, is_superuser=True)
         refresh = RefreshToken.for_user(user)
+        # Return a compact admin-shaped user object in the response
+        from .serializers import AdminListUserSerializer
+        user_data = AdminListUserSerializer(user, context={'request': request}).data
         return Response({
             'refresh': str(refresh),
             'access': str(refresh.access_token),
-            'user': serializer.data
+            'user': user_data
         }, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -429,7 +413,7 @@ class UserUpdateAPIView(APIView):
         try:
             user = User.objects.get(username=username)  # Changed to use username
         except User.DoesNotExist:
-            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'المستخدم غير موجود'}, status=status.HTTP_400_BAD_REQUEST)
         
         serializer = UserSerializer(user, data=request.data, partial=True)
         if serializer.is_valid():
@@ -444,7 +428,7 @@ class UserDeleteAPIView(APIView):
         try:
             user = User.objects.get(pk=pk)
         except User.DoesNotExist:
-            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'المستخدم غير موجود'}, status=status.HTTP_400_BAD_REQUEST)
         
         user.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -470,23 +454,47 @@ class UserProfileImageRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAP
 
 # user analysis
 
-class AdminUserListView(generics.ListAPIView):
-    serializer_class = UserSerializer
+class AdminUserFilter(filters.FilterSet):
+    """Reusable filter that supports 'government' as an IN filter (comma-separated)."""
+    government = filters.BaseInFilter(field_name='government', lookup_expr='in')
+
+    class Meta:
+        model = User
+        fields = ['is_staff', 'is_superuser', 'year', 'division', 'government']
+
+
+class AdminsListView(generics.ListAPIView):
+    """Return users who are admins (is_staff OR is_superuser)."""
+    serializer_class = None
     permission_classes = [IsAdminUser]
-    queryset = User.objects.all().order_by('-created_at')
-    
-    # Use a custom FilterSet to allow filtering by multiple governments
-    class AdminUserFilter(filters.FilterSet):
-        government = filters.BaseInFilter(field_name='government', lookup_expr='in')
-
-        class Meta:
-            model = User
-            fields = ['is_staff', 'is_superuser', 'year', 'division', 'government']
-
     filter_backends = [SearchFilter, OrderingFilter, DjangoFilterBackend]
     ordering_fields = ['created_at']
     search_fields = ['username', 'name', 'email', 'government']
     filterset_class = AdminUserFilter
+
+    def get_queryset(self):
+        return User.objects.filter(Q(is_staff=True) | Q(is_superuser=True)).order_by('-created_at')
+
+    def get_serializer_class(self):
+        from .serializers import AdminListUserSerializer
+        return AdminListUserSerializer
+
+
+class UsersListView(generics.ListAPIView):
+    """Return non-admin users (exclude is_staff and is_superuser)."""
+    serializer_class = None
+    permission_classes = [IsAdminUser]
+    filter_backends = [SearchFilter, OrderingFilter, DjangoFilterBackend]
+    ordering_fields = ['created_at']
+    search_fields = ['username', 'name', 'email', 'government']
+    filterset_class = AdminUserFilter
+
+    def get_queryset(self):
+        return User.objects.filter(is_staff=False, is_superuser=False).order_by('-created_at')
+
+    def get_serializer_class(self):
+        from .serializers import PublicUserSerializer
+        return PublicUserSerializer
 
 
 class AdminUserDetailView(generics.RetrieveAPIView):
@@ -534,7 +542,7 @@ def update_student_max_devices(request, pk):
     try:
         student = User.objects.get(pk=pk, user_type='student')
     except User.DoesNotExist:
-        return Response({'error': 'Student not found'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({'error': 'الطالب غير موجود'}, status=status.HTTP_400_BAD_REQUEST)
     
     serializer = UpdateMaxDevicesSerializer(data=request.data)
     if serializer.is_valid():
@@ -572,12 +580,12 @@ def remove_student_device(request, pk, device_id):
     try:
         student = User.objects.get(pk=pk, user_type='student')
     except User.DoesNotExist:
-        return Response({'error': 'Student not found'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({'error': 'الطالب غير موجود'}, status=status.HTTP_400_BAD_REQUEST)
     
     try:
         device = UserDevice.objects.get(pk=device_id, user=student)
     except UserDevice.DoesNotExist:
-        return Response({'error': 'Device not found for this student'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({'error': 'الجهاز غير موجود لهذا الطالب'}, status=status.HTTP_400_BAD_REQUEST)
     
     device_name = device.device_name
     device.delete()
@@ -597,7 +605,7 @@ def remove_all_student_devices(request, pk):
     try:
         student = User.objects.get(pk=pk, user_type='student')
     except User.DoesNotExist:
-        return Response({'error': 'Student not found'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({'error': 'الطالب غير موجود'}, status=status.HTTP_400_BAD_REQUEST)
     
     deleted_count = UserDevice.objects.filter(user=student).delete()[0]
     

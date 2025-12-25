@@ -25,7 +25,9 @@ urlpatterns = [
     path('dashboard/profile-images/', views.UserProfileImageListCreateView.as_view(), name='profile-image-list'),
     path('dashboard/profile-images/<int:pk>/', views.UserProfileImageRetrieveUpdateDestroyView.as_view(), name='profile-image-detail'),
     # user analysis
-    path('dashboard/users/', views.AdminUserListView.as_view(), name='admin-user-list'),
+    # Dashboard user lists: admins and non-admin users
+    path('dashboard/admins/', views.AdminsListView.as_view(), name='admin-list'),
+    path('dashboard/users/', views.UsersListView.as_view(), name='dashboard-users-list'),
     path('dashboard/users/<int:pk>/', views.AdminUserDetailView.as_view(), name='admin-user-detail'),
     
     # Device Management (Admin)

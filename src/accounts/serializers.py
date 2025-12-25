@@ -61,21 +61,15 @@ class UserProfileImageCreateSerializer(serializers.ModelSerializer):
         
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False)  # Make password optional for updates
-    user_profile_image = UserProfileImageSerializer(read_only=True)
-    user_profile_image_id = serializers.PrimaryKeyRelatedField(
-        queryset=UserProfileImage.objects.all(),
-        source='user_profile_image',
-        required=False,
-        allow_null=True
-    )
+    # user_profile_image removed per request
 
     class Meta:
         model = User
         fields = (
             'id', 'username', 'email', 'password', 'name','government',
             'is_staff', 'is_superuser', 'user_type', 'parent_phone',
-            'year', 'division', 'user_profile_image',
-            'user_profile_image_id','created_at'
+            'year', 'division',
+            'created_at'
         )
         extra_kwargs = {
             'is_staff': {'read_only': True},
@@ -155,7 +149,6 @@ class UserSerializer(serializers.ModelSerializer):
         """
         Handle user creation with proper password hashing
         """
-        profile_image = validated_data.pop('user_profile_image', None)
         email = validated_data.get('email', None)
         user = User.objects.create_user(
             username=validated_data['username'],
@@ -169,9 +162,33 @@ class UserSerializer(serializers.ModelSerializer):
             year=validated_data.get('year', None),
             division=validated_data.get('division', None),
             government=validated_data.get('government', None),
-            user_profile_image=profile_image
         )
         return user
+
+
+class AdminListUserSerializer(serializers.ModelSerializer):
+    """Serializer for admin listing (admins only)."""
+    # user_profile_image removed from admin listing
+
+    class Meta:
+        model = User
+        fields = (
+            'id', 'username', 'email', 'name', 'is_staff', 'is_superuser',
+            'created_at'
+        )
+
+
+class PublicUserSerializer(serializers.ModelSerializer):
+    """Serializer for non-admin users listing."""
+    # user_profile_image removed from public listing
+
+    class Meta:
+        model = User
+        fields = (
+            'id', 'username', 'email', 'name', 'government', 'user_type',
+            'parent_phone', 'year', 'division',
+            'created_at'
+        )
 
 
 class PasswordResetRequestSerializer(serializers.Serializer):
