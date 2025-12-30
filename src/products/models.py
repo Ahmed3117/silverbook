@@ -58,6 +58,7 @@ PRODUCT_TYPE_CHOICES = [
     ('package', 'Package'),
 ]
 
+
 def generate_pill_number():
     """Generate a unique 20-digit pill number."""
     while True:
