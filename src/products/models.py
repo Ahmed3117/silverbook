@@ -53,6 +53,11 @@ PAYMENT_GATEWAY_CHOICES = [
     ('shakeout', 'Shake-out'),
 ]
 
+PRODUCT_TYPE_CHOICES = [
+    ('book', 'Book'),
+    ('package', 'Package'),
+]
+
 def generate_pill_number():
     """Generate a unique 20-digit pill number."""
     while True:
@@ -114,6 +119,12 @@ class Teacher(models.Model):
 class Product(models.Model):
     product_number = models.CharField(max_length=20, null=True, blank=True)
     name = models.CharField(max_length=100)
+    type = models.CharField(
+        max_length=10,
+        choices=PRODUCT_TYPE_CHOICES,
+        default='book',
+        help_text="Product type: Book or Package"
+    )
     category = models.ForeignKey(Category, on_delete=models.CASCADE, null=True, blank=True, related_name='products')
     sub_category = models.ForeignKey(SubCategory, on_delete=models.CASCADE, null=True, blank=True, related_name='products')
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, null=True, blank=True, related_name='products')
@@ -278,6 +289,46 @@ class Product(models.Model):
     class Meta:
         ordering = ['-date_added']
         
+class PackageProduct(models.Model):
+    """Model to store the relationship between package products and their related book products."""
+    package_product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name='package_products',
+        limit_choices_to={'type': 'package'},
+        help_text="The package product"
+    )
+    related_product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name='in_packages',
+        limit_choices_to={'type': 'book'},
+        help_text="The book product included in the package"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+        unique_together = ['package_product', 'related_product']
+        verbose_name = 'Package Product'
+        verbose_name_plural = 'Package Products'
+
+    def __str__(self):
+        return f"{self.package_product.name} -> {self.related_product.name}"
+
+    def clean(self):
+        """Validate that package_product is a package and related_product is a book."""
+        if self.package_product and self.package_product.type != 'package':
+            raise ValidationError({'package_product': 'Must be a package type product.'})
+        if self.related_product and self.related_product.type != 'book':
+            raise ValidationError({'related_product': 'Must be a book type product.'})
+        if self.package_product and self.related_product and self.package_product.id == self.related_product.id:
+            raise ValidationError('A product cannot be related to itself.')
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
 class SpecialProduct(models.Model):
     product = models.ForeignKey(
         Product,
@@ -497,6 +548,7 @@ class Pill(models.Model):
             if not product:
                 continue
 
+            # Create PurchasedBook for the product (book or package)
             PurchasedBook.objects.update_or_create(
                 user=self.user,
                 pill=self,

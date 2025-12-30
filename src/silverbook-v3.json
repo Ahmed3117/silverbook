@@ -1,10 +1,11 @@
 {
 	"info": {
-		"_postman_id": "e44e83f8-7bdc-4aba-a177-4bd091a58809",
-		"name": "new Silver 2",
+		"_postman_id": "8078d399-ab8f-4900-be41-9a042884fcaf",
+		"name": "silverbook-v3",
 		"description": "Complete API collection for Silver Bookstore - Accounts & Products apps with Customer and Dashboard flows",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "33824171"
+		"_exporter_id": "33824171",
+		"_collection_link": "https://test00-8087.postman.co/workspace/easytech~ff9a6e92-dd7f-40bf-97c9-bbff57c0a449/collection/33824171-8078d399-ab8f-4900-be41-9a042884fcaf?action=share&source=collection_link&creator=33824171"
 	},
 	"item": [
 		{
@@ -58,7 +59,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"username\": \"01012312345\",\n    \"password\": \"withALLAH\",\n    \"name\": \"Test student3\",\n    \"email\": \"student@example.com\",\n    \"user_type\": \"student\",\n    \"year\": \"first-secondary\",\n    \"division\": \"علمى رياضة\",\n    \"government\": \"1\"\n}"
+									"raw": "{\n    \"username\": \"555555\",\n    \"password\": \"withALLAH\",\n    \"name\": \"Test student5\",\n    \"email\": \"student@example.com\",\n    //\"user_type\": \"student\",\n    \"year\": \"first-secondary\",\n    \"division\": \"علمى رياضة\",\n    \"government\": \"1\"\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/accounts/signup/",
@@ -76,7 +77,69 @@
 							"response": []
 						},
 						{
-							"name": "Signin",
+							"name": "Signin (not admins)",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 200) {",
+											"    var jsonData = pm.response.json();",
+											"    pm.collectionVariables.set('access_token', jsonData.access);",
+											"    pm.collectionVariables.set('refresh_token', jsonData.refresh);",
+											"    pm.collectionVariables.set('username', jsonData.user.username);",
+											"    pm.collectionVariables.set('user_id', jsonData.user.id);",
+											"}"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											""
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"username\": \"01095163117\",\n    \"password\": \"withALLAH\",\n    \"device_id\": \"12345\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/accounts/signin/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"accounts",
+										"signin",
+										""
+									]
+								},
+								"description": "Login with username and password"
+							},
+							"response": []
+						},
+						{
+							"name": "Signin (admins only)",
 							"event": [
 								{
 									"listen": "test",
@@ -123,12 +186,13 @@
 									"raw": "{\n    \"username\": \"admin\",\n    \"password\": \"admin\"\n}"
 								},
 								"url": {
-									"raw": "{{base_url}}/accounts/signin/",
+									"raw": "{{base_url}}/accounts/dashboard/signin/",
 									"host": [
 										"{{base_url}}"
 									],
 									"path": [
 										"accounts",
+										"dashboard",
 										"signin",
 										""
 									]
@@ -408,7 +472,7 @@
 								"header": [
 									{
 										"key": "auth",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY0MTgzNjM0LCJpYXQiOjE3NjM5MjQ0MzUsImp0aSI6IjlmYzZlMmY1MmQ1ZDRhNTI4MTc0NmM3YzZkYjgxODlmIiwidXNlcl9pZCI6IjMifQ.Bgbyw5lLHDVSas445Poo7tbVzFhZH8v8ZjaQPFcCdsA",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY2OTI4MjUxLCJpYXQiOjE3NjY2NjkwNTEsImp0aSI6IjczNjAwNDdkMjgxMDQzMjBiYzBiNmZlZGE1NWI1OWFhIiwidXNlcl9pZCI6IjQiLCJkZXZpY2VfdG9rZW4iOiI5MDQ2ODIwMjgzZTdmYWQ0ZTA4ZDc4ZDBkMzhiMGYwYTBkYTMzY2Q2MWVkZWVhNjU5YjhhYzE3NGI5OTJlYzVkIn0.VTSixOhGGlHdsPwvR2b6S2SZu3hvgivzHDousCZhV9k",
 										"type": "text"
 									}
 								],
@@ -478,11 +542,16 @@
 									{
 										"key": "Content-Type",
 										"value": "application/json"
+									},
+									{
+										"key": "auth",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY2OTMxNjgzLCJpYXQiOjE3NjY2NzI0ODMsImp0aSI6ImFmM2JkNjBkMGFhOTQ0NTNhNDhjYmY2ZWI5ZGFlMWIyIiwidXNlcl9pZCI6IjEifQ.hFfHUmwSBCqGY3F321Z9FMHxchS0p14PqlErm3ljZ6s",
+										"type": "text"
 									}
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"username\": \"admin2\",\n    \"password\": \"adminpass123\",\n    \"name\": \"Admin User\",\n    \"email\": \"admin@silverbookstore.com\"\n}"
+									"raw": "{\n    \"username\": \"admin4\",\n    \"password\": \"adminpass123\",\n    \"name\": \"Admin User\",\n    \"email\": \"admin@silverbookstore.com\"\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/accounts/dashboard/create-admin-user/",
@@ -501,18 +570,18 @@
 							"response": []
 						},
 						{
-							"name": "List All Users",
+							"name": "List All Users (not admins)",
 							"request": {
 								"method": "GET",
 								"header": [
 									{
 										"key": "auth",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY0Nzg0NzMwLCJpYXQiOjE3NjQ1MjU1MzAsImp0aSI6IjA5MjkzM2NkMjdkMTQ1MDFiODVjYzAxYTU2MTA5ZjA5IiwidXNlcl9pZCI6IjEifQ.i9gi7Dnqf_HSpd8tm7qefkdYLj7dcA6OA5nAGT51Vws",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY3MjU4MTA1LCJpYXQiOjE3NjY5OTg5MDUsImp0aSI6ImQwOTRhNWJkN2M0YzRkNTU5MDliNTE1N2ExOWNlNTk4IiwidXNlcl9pZCI6IjEifQ.qLB4JdampW-NBtGzgNxnAvEsT1EXOpPk2CbgJoo48xg",
 										"type": "text"
 									}
 								],
 								"url": {
-									"raw": "{{base_url}}/accounts/dashboard/users/?search=010",
+									"raw": "{{base_url}}/accounts/dashboard/users/?government=2",
 									"host": [
 										"{{base_url}}"
 									],
@@ -526,7 +595,65 @@
 										{
 											"key": "search",
 											"value": "010",
-											"description": "Search by username, name, email, government"
+											"description": "Search by username, name, email, government",
+											"disabled": true
+										},
+										{
+											"key": "ordering",
+											"value": "-created_at",
+											"description": "Order by: created_at, cart_items_count, loved_count",
+											"disabled": true
+										},
+										{
+											"key": "is_staff",
+											"value": "",
+											"description": "Filter by staff status (true/false)",
+											"disabled": true
+										},
+										{
+											"key": "year",
+											"value": "",
+											"description": "Filter by year (first-secondary, second-secondary, third-secondary)",
+											"disabled": true
+										},
+										{
+											"key": "government",
+											"value": "2"
+										}
+									]
+								},
+								"description": "List all users with filtering, searching, and ordering capabilities"
+							},
+							"response": []
+						},
+						{
+							"name": "List All Users (admins)",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "auth",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY2OTIzMjgxLCJpYXQiOjE3NjY2NjQwODEsImp0aSI6ImU4MTE1NWVmODk3YzQ1ODk4ZThiMmI2YTk1OTlmODIxIiwidXNlcl9pZCI6IjEiLCJkZXZpY2VfdG9rZW4iOiI0ZThiOTRiMjNkYjJhODI4ZTM5NWM1NTU5NWM0YzI0MWYwOTk2YTYyYTlhM2M0ZTBiOTBhN2IyYWEzZGE5MzI2In0.EjSzFBqq2ZXpJGmLFagXT4_6S9Ksr1fEXiFLW8tXfgk",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/accounts/dashboard/admins/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"accounts",
+										"dashboard",
+										"admins",
+										""
+									],
+									"query": [
+										{
+											"key": "search",
+											"value": "010",
+											"description": "Search by username, name, email, government",
+											"disabled": true
 										},
 										{
 											"key": "ordering",
@@ -591,7 +718,7 @@
 									},
 									{
 										"key": "auth",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY0NDM5ODMzLCJpYXQiOjE3NjQxODA2MzMsImp0aSI6ImY4ZDEwYzJiMzQ2YTQ5YjFiYTI1MzlmYTBhNjMyNWM2IiwidXNlcl9pZCI6IjcifQ.3WznAy_Ley1vI3taj_YbAjudySHcDlThczxJqWWosFs",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY2OTMxNjgzLCJpYXQiOjE3NjY2NzI0ODMsImp0aSI6ImFmM2JkNjBkMGFhOTQ0NTNhNDhjYmY2ZWI5ZGFlMWIyIiwidXNlcl9pZCI6IjEifQ.hFfHUmwSBCqGY3F321Z9FMHxchS0p14PqlErm3ljZ6s",
 										"type": "text"
 									}
 								],
@@ -1012,7 +1139,13 @@
 									"type": "noauth"
 								},
 								"method": "GET",
-								"header": [],
+								"header": [
+									{
+										"key": "auth",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY2OTI1Mzg3LCJpYXQiOjE3NjY2NjYxODcsImp0aSI6ImE0ZjhkODE2NDgwYzQ4NGE5ZjQyZThkMTM4ZWVkMDUwIiwidXNlcl9pZCI6IjQiLCJkZXZpY2VfdG9rZW4iOiI5MDQ2ODIwMjgzZTdmYWQ0ZTA4ZDc4ZDBkMzhiMGYwYTBkYTMzY2Q2MWVkZWVhNjU5YjhhYzE3NGI5OTJlYzVkIn0.C1CITVtfm47r_BFa-8CzKacGw8Cqnbgdgy80BUJmtRQ",
+										"type": "text"
+									}
+								],
 								"url": {
 									"raw": "{{base_url}}/products/categories/",
 									"host": [
@@ -1140,6 +1273,16 @@
 										{
 											"key": "search",
 											"value": "mathematics",
+											"disabled": true
+										},
+										{
+											"key": "page",
+											"value": "2",
+											"disabled": true
+										},
+										{
+											"key": "per_page",
+											"value": "2",
 											"disabled": true
 										}
 									]
@@ -1345,13 +1488,13 @@
 									},
 									{
 										"key": "auth",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY0Nzg3MTI2LCJpYXQiOjE3NjQ1Mjc5MjYsImp0aSI6IjIxMDdkNjAzYmJmZTQ4MWViMDBkOTZlNzM0YWZkYTEyIiwidXNlcl9pZCI6IjkifQ.LUH0lUv65EILSq2UTv9rtxbjo94KEwcaoiSxf5nFczo",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY2ODYwNzU4LCJpYXQiOjE3NjY2MDE1NTgsImp0aSI6Ijg1YzRlY2E3MjkwNDQyMDFhYTEwNjQyNWUyYjdhYzU5IiwidXNlcl9pZCI6IjQiLCJkZXZpY2VfdG9rZW4iOiI5MDQ2ODIwMjgzZTdmYWQ0ZTA4ZDc4ZDBkMzhiMGYwYTBkYTMzY2Q2MWVkZWVhNjU5YjhhYzE3NGI5OTJlYzVkIn0.A41lv0gYBbSclRazkRmR0zAkH8bkiKerCyhXZ8Rzp7s",
 										"type": "text"
 									}
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"items\": [\n        { \"product\": 1 },\n        { \"product\": 2 }\n    ]\n}"
+									"raw": "{\n    \"items\": [\n        { \"product\": 7 },\n        { \"product\": 2 }\n    ]\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/products/pills/init/",
@@ -1376,7 +1519,7 @@
 								"header": [
 									{
 										"key": "auth",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY0Nzg3MTI2LCJpYXQiOjE3NjQ1Mjc5MjYsImp0aSI6IjIxMDdkNjAzYmJmZTQ4MWViMDBkOTZlNzM0YWZkYTEyIiwidXNlcl9pZCI6IjkifQ.LUH0lUv65EILSq2UTv9rtxbjo94KEwcaoiSxf5nFczo",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY2NzM2ODg5LCJpYXQiOjE3NjY0Nzc2OTAsImp0aSI6ImU0Mzc0OTc2YmEwZTRlOTQ5YTBiYWNmYjZhMWUxODQ1IiwidXNlcl9pZCI6IjEiLCJkZXZpY2VfdG9rZW4iOiI0ZThiOTRiMjNkYjJhODI4ZTM5NWM1NTU5NWM0YzI0MWYwOTk2YTYyYTlhM2M0ZTBiOTBhN2IyYWEzZGE5MzI2In0.cIdwOUB5oISaqJlrWFr2v6oXv1UFIP-HFwppO7i0s4A",
 										"type": "text"
 									}
 								],
@@ -1407,13 +1550,13 @@
 									},
 									{
 										"key": "auth",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY0Nzg3MTI2LCJpYXQiOjE3NjQ1Mjc5MjYsImp0aSI6IjIxMDdkNjAzYmJmZTQ4MWViMDBkOTZlNzM0YWZkYTEyIiwidXNlcl9pZCI6IjkifQ.LUH0lUv65EILSq2UTv9rtxbjo94KEwcaoiSxf5nFczo",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY2NzM2ODg5LCJpYXQiOjE3NjY0Nzc2OTAsImp0aSI6ImU0Mzc0OTc2YmEwZTRlOTQ5YTBiYWNmYjZhMWUxODQ1IiwidXNlcl9pZCI6IjEiLCJkZXZpY2VfdG9rZW4iOiI0ZThiOTRiMjNkYjJhODI4ZTM5NWM1NTU5NWM0YzI0MWYwOTk2YTYyYTlhM2M0ZTBiOTBhN2IyYWEzZGE5MzI2In0.cIdwOUB5oISaqJlrWFr2v6oXv1UFIP-HFwppO7i0s4A",
 										"type": "text"
 									}
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"coupon\": \"a-1-@\"\n}"
+									"raw": "{\n    \"coupon\": \"00535840903\"\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/products/pills/{{pill_id}}/apply-coupon/",
@@ -1443,7 +1586,7 @@
 									},
 									{
 										"key": "auth",
-										"value": "Bearer {{jwt_token}}",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY2ODYwNzU4LCJpYXQiOjE3NjY2MDE1NTgsImp0aSI6Ijg1YzRlY2E3MjkwNDQyMDFhYTEwNjQyNWUyYjdhYzU5IiwidXNlcl9pZCI6IjQiLCJkZXZpY2VfdG9rZW4iOiI5MDQ2ODIwMjgzZTdmYWQ0ZTA4ZDc4ZDBkMzhiMGYwYTBkYTMzY2Q2MWVkZWVhNjU5YjhhYzE3NGI5OTJlYzVkIn0.A41lv0gYBbSclRazkRmR0zAkH8bkiKerCyhXZ8Rzp7s",
 										"type": "text"
 									}
 								],
@@ -1548,6 +1691,69 @@
 						}
 					],
 					"description": "Checkout and order management"
+				},
+				{
+					"name": "Package Products",
+					"item": [
+						{
+							"name": "Get Package Details (Owned)",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{customer_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/products/my-books/package/{{product_id}}/details/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"my-books",
+										"package",
+										"{{product_id}}",
+										"details",
+										""
+									]
+								},
+								"description": "Get related books in a package that the user owns. Returns error if product is not a package or user doesn't own it."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Package Related Products (Browse)",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{customer_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/products/products/{{product_id}}/related-products/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"products",
+										"{{product_id}}",
+										"related-products",
+										""
+									]
+								},
+								"description": "Get related products of a package (for browsing, no ownership check). Returns 'هذا الكتاب ليس حزمة' if product is not a package."
+							},
+							"response": []
+						}
+					],
+					"description": "Package product endpoints for viewing package contents"
 				},
 				{
 					"name": "Ratings & Reviews",
@@ -1799,17 +2005,12 @@
 						"header": [
 							{
 								"key": "auth",
-								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY0MTgzNjM0LCJpYXQiOjE3NjM5MjQ0MzUsImp0aSI6IjlmYzZlMmY1MmQ1ZDRhNTI4MTc0NmM3YzZkYjgxODlmIiwidXNlcl9pZCI6IjMifQ.Bgbyw5lLHDVSas445Poo7tbVzFhZH8v8ZjaQPFcCdsA",
-								"type": "text"
-							},
-							{
-								"key": "",
-								"value": "",
+								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY2OTI4MjUxLCJpYXQiOjE3NjY2NjkwNTEsImp0aSI6IjczNjAwNDdkMjgxMDQzMjBiYzBiNmZlZGE1NWI1OWFhIiwidXNlcl9pZCI6IjQiLCJkZXZpY2VfdG9rZW4iOiI5MDQ2ODIwMjgzZTdmYWQ0ZTA4ZDc4ZDBkMzhiMGYwYTBkYTMzY2Q2MWVkZWVhNjU5YjhhYzE3NGI5OTJlYzVkIn0.VTSixOhGGlHdsPwvR2b6S2SZu3hvgivzHDousCZhV9k",
 								"type": "text"
 							}
 						],
 						"url": {
-							"raw": "{{base_url}}/products/user-pills/",
+							"raw": "{{base_url}}/products/user-pills/?status=w",
 							"host": [
 								"{{base_url}}"
 							],
@@ -1817,6 +2018,12 @@
 								"products",
 								"user-pills",
 								""
+							],
+							"query": [
+								{
+									"key": "status",
+									"value": "w"
+								}
 							]
 						},
 						"description": "Get all orders for current user"
@@ -1972,7 +2179,13 @@
 							"name": "List Subjects",
 							"request": {
 								"method": "GET",
-								"header": [],
+								"header": [
+									{
+										"key": "auth",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY2OTMxNjgzLCJpYXQiOjE3NjY2NzI0ODMsImp0aSI6ImFmM2JkNjBkMGFhOTQ0NTNhNDhjYmY2ZWI5ZGFlMWIyIiwidXNlcl9pZCI6IjEifQ.hFfHUmwSBCqGY3F321Z9FMHxchS0p14PqlErm3ljZ6s",
+										"type": "text"
+									}
+								],
 								"url": {
 									"raw": "{{base_url}}/products/dashboard/subjects/",
 									"host": [
@@ -2001,7 +2214,9 @@
 											"    pm.collectionVariables.set('subject_id', jsonData.id);",
 											"}"
 										],
-										"type": "text/javascript"
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
 									}
 								}
 							],
@@ -2011,11 +2226,16 @@
 									{
 										"key": "Content-Type",
 										"value": "application/json"
+									},
+									{
+										"key": "auth",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY2OTMxNjgzLCJpYXQiOjE3NjY2NzI0ODMsImp0aSI6ImFmM2JkNjBkMGFhOTQ0NTNhNDhjYmY2ZWI5ZGFlMWIyIiwidXNlcl9pZCI6IjEifQ.hFfHUmwSBCqGY3F321Z9FMHxchS0p14PqlErm3ljZ6s",
+										"type": "text"
 									}
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"name\": \"Mathematics\"\n}"
+									"raw": "{\n    \"name\": \"subject1\"\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/products/dashboard/subjects/",
@@ -2125,13 +2345,21 @@
 											"    pm.collectionVariables.set('teacher_id', jsonData.id);",
 											"}"
 										],
-										"type": "text/javascript"
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
 									}
 								}
 							],
 							"request": {
 								"method": "POST",
-								"header": [],
+								"header": [
+									{
+										"key": "auth",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY2ODY2Nzg1LCJpYXQiOjE3NjY2MDc1ODUsImp0aSI6IjNlMjgyYzk2OGNjZjRhY2M5ZGUxNzc3Y2ZmMmZjZThmIiwidXNlcl9pZCI6IjEiLCJkZXZpY2VfdG9rZW4iOiI0ZThiOTRiMjNkYjJhODI4ZTM5NWM1NTU5NWM0YzI0MWYwOTk2YTYyYTlhM2M0ZTBiOTBhN2IyYWEzZGE5MzI2In0.xqYXidm1n5QwefqLdYAgyyMv2OsezBWj_1Gnql417aA",
+										"type": "text"
+									}
+								],
 								"body": {
 									"mode": "formdata",
 									"formdata": [
@@ -2153,7 +2381,7 @@
 										{
 											"key": "image",
 											"type": "file",
-											"src": []
+											"src": "postman-cloud:///1efd2bb8-e15b-47c0-92f2-b2b3459dc057"
 										}
 									]
 								},
@@ -2177,7 +2405,13 @@
 							"name": "Update Teacher",
 							"request": {
 								"method": "PATCH",
-								"header": [],
+								"header": [
+									{
+										"key": "auth",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY2ODY2Nzg1LCJpYXQiOjE3NjY2MDc1ODUsImp0aSI6IjNlMjgyYzk2OGNjZjRhY2M5ZGUxNzc3Y2ZmMmZjZThmIiwidXNlcl9pZCI6IjEiLCJkZXZpY2VfdG9rZW4iOiI0ZThiOTRiMjNkYjJhODI4ZTM5NWM1NTU5NWM0YzI0MWYwOTk2YTYyYTlhM2M0ZTBiOTBhN2IyYWEzZGE5MzI2In0.xqYXidm1n5QwefqLdYAgyyMv2OsezBWj_1Gnql417aA",
+										"type": "text"
+									}
+								],
 								"body": {
 									"mode": "formdata",
 									"formdata": [
@@ -2190,7 +2424,7 @@
 										{
 											"key": "image",
 											"type": "file",
-											"src": []
+											"src": "postman-cloud:///1efd2bb8-e15b-47c0-92f2-b2b3459dc057"
 										}
 									]
 								},
@@ -2303,13 +2537,19 @@
 							],
 							"request": {
 								"method": "POST",
-								"header": [],
+								"header": [
+									{
+										"key": "auth",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY2NzM2ODg5LCJpYXQiOjE3NjY0Nzc2OTAsImp0aSI6ImU0Mzc0OTc2YmEwZTRlOTQ5YTBiYWNmYjZhMWUxODQ1IiwidXNlcl9pZCI6IjEiLCJkZXZpY2VfdG9rZW4iOiI0ZThiOTRiMjNkYjJhODI4ZTM5NWM1NTU5NWM0YzI0MWYwOTk2YTYyYTlhM2M0ZTBiOTBhN2IyYWEzZGE5MzI2In0.cIdwOUB5oISaqJlrWFr2v6oXv1UFIP-HFwppO7i0s4A",
+										"type": "text"
+									}
+								],
 								"body": {
 									"mode": "formdata",
 									"formdata": [
 										{
 											"key": "name",
-											"value": "test s3 -2",
+											"value": "silver-1",
 											"type": "text"
 										},
 										{
@@ -2329,7 +2569,7 @@
 										},
 										{
 											"key": "price",
-											"value": "149.99",
+											"value": "200",
 											"type": "text"
 										},
 										{
@@ -2355,12 +2595,12 @@
 										{
 											"key": "pdf_file",
 											"value": "",
-											"type": "file"
+											"type": "text"
 										},
 										{
 											"key": "base_image",
-											"type": "file",
-											"src": "postman-cloud:///1efd2bb8-e15b-47c0-92f2-b2b3459dc057"
+											"value": "",
+											"type": "text"
 										}
 									]
 								},
@@ -2722,7 +2962,13 @@
 							"name": "List Special Products",
 							"request": {
 								"method": "GET",
-								"header": [],
+								"header": [
+									{
+										"key": "auth",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY2ODY2Nzg1LCJpYXQiOjE3NjY2MDc1ODUsImp0aSI6IjNlMjgyYzk2OGNjZjRhY2M5ZGUxNzc3Y2ZmMmZjZThmIiwidXNlcl9pZCI6IjEiLCJkZXZpY2VfdG9rZW4iOiI0ZThiOTRiMjNkYjJhODI4ZTM5NWM1NTU5NWM0YzI0MWYwOTk2YTYyYTlhM2M0ZTBiOTBhN2IyYWEzZGE5MzI2In0.xqYXidm1n5QwefqLdYAgyyMv2OsezBWj_1Gnql417aA",
+										"type": "text"
+									}
+								],
 								"url": {
 									"raw": "{{base_url}}/products/dashboard/special-products/",
 									"host": [
@@ -2751,25 +2997,33 @@
 											"    pm.collectionVariables.set('special_product_id', jsonData.id);",
 											"}"
 										],
-										"type": "text/javascript"
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
 									}
 								}
 							],
 							"request": {
 								"method": "POST",
-								"header": [],
+								"header": [
+									{
+										"key": "auth",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY2ODY2Nzg1LCJpYXQiOjE3NjY2MDc1ODUsImp0aSI6IjNlMjgyYzk2OGNjZjRhY2M5ZGUxNzc3Y2ZmMmZjZThmIiwidXNlcl9pZCI6IjEiLCJkZXZpY2VfdG9rZW4iOiI0ZThiOTRiMjNkYjJhODI4ZTM5NWM1NTU5NWM0YzI0MWYwOTk2YTYyYTlhM2M0ZTBiOTBhN2IyYWEzZGE5MzI2In0.xqYXidm1n5QwefqLdYAgyyMv2OsezBWj_1Gnql417aA",
+										"type": "text"
+									}
+								],
 								"body": {
 									"mode": "formdata",
 									"formdata": [
 										{
-											"key": "product",
+											"key": "product_id",
 											"value": "1",
 											"type": "text"
 										},
 										{
-											"key": "image",
+											"key": "special_image",
 											"type": "file",
-											"src": []
+											"src": "postman-cloud:///1f0e18b4-5bb1-4e40-ad75-927eb060e457"
 										}
 									]
 								},
@@ -2793,14 +3047,20 @@
 							"name": "Update Special Product",
 							"request": {
 								"method": "PATCH",
-								"header": [],
+								"header": [
+									{
+										"key": "auth",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY2ODY2Nzg1LCJpYXQiOjE3NjY2MDc1ODUsImp0aSI6IjNlMjgyYzk2OGNjZjRhY2M5ZGUxNzc3Y2ZmMmZjZThmIiwidXNlcl9pZCI6IjEiLCJkZXZpY2VfdG9rZW4iOiI0ZThiOTRiMjNkYjJhODI4ZTM5NWM1NTU5NWM0YzI0MWYwOTk2YTYyYTlhM2M0ZTBiOTBhN2IyYWEzZGE5MzI2In0.xqYXidm1n5QwefqLdYAgyyMv2OsezBWj_1Gnql417aA",
+										"type": "text"
+									}
+								],
 								"body": {
 									"mode": "formdata",
 									"formdata": [
 										{
-											"key": "image",
+											"key": "special_image",
 											"type": "file",
-											"src": []
+											"src": "postman-cloud:///1f0e106d-5ebf-4730-bdeb-b76110155377"
 										}
 									]
 								},
@@ -2825,7 +3085,13 @@
 							"name": "Delete Special Product",
 							"request": {
 								"method": "DELETE",
-								"header": [],
+								"header": [
+									{
+										"key": "auth",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY2OTIzMjgxLCJpYXQiOjE3NjY2NjQwODEsImp0aSI6ImU4MTE1NWVmODk3YzQ1ODk4ZThiMmI2YTk1OTlmODIxIiwidXNlcl9pZCI6IjEiLCJkZXZpY2VfdG9rZW4iOiI0ZThiOTRiMjNkYjJhODI4ZTM5NWM1NTU5NWM0YzI0MWYwOTk2YTYyYTlhM2M0ZTBiOTBhN2IyYWEzZGE5MzI2In0.EjSzFBqq2ZXpJGmLFagXT4_6S9Ksr1fEXiFLW8tXfgk",
+										"type": "text"
+									}
+								],
 								"url": {
 									"raw": "{{base_url}}/products/dashboard/special-products/{{special_product_id}}/",
 									"host": [
@@ -3013,7 +3279,9 @@
 											"    pm.collectionVariables.set('discount_id', jsonData.id);",
 											"}"
 										],
-										"type": "text/javascript"
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
 									}
 								}
 							],
@@ -3023,11 +3291,16 @@
 									{
 										"key": "Content-Type",
 										"value": "application/json"
+									},
+									{
+										"key": "auth",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY2NzM2ODg5LCJpYXQiOjE3NjY0Nzc2OTAsImp0aSI6ImU0Mzc0OTc2YmEwZTRlOTQ5YTBiYWNmYjZhMWUxODQ1IiwidXNlcl9pZCI6IjEiLCJkZXZpY2VfdG9rZW4iOiI0ZThiOTRiMjNkYjJhODI4ZTM5NWM1NTU5NWM0YzI0MWYwOTk2YTYyYTlhM2M0ZTBiOTBhN2IyYWEzZGE5MzI2In0.cIdwOUB5oISaqJlrWFr2v6oXv1UFIP-HFwppO7i0s4A",
+										"type": "text"
 									}
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"product\": 1,\n    \"discount\": 20,\n    \"discount_start\": \"2025-01-01T00:00:00Z\",\n    \"discount_end\": \"2025-12-31T23:59:59Z\",\n    \"is_active\": true\n}"
+									"raw": "{\n    \"product\": 7,\n    \"discount\": 20,\n    \"discount_start\": \"2025-01-01T00:00:00Z\",\n    \"discount_end\": \"2026-12-31T23:59:59Z\",\n    \"is_active\": true\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/products/dashboard/discounts/",
@@ -3163,13 +3436,13 @@
 									},
 									{
 										"key": "auth",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY1NDc0ODM0LCJpYXQiOjE3NjUyMTU2MzQsImp0aSI6IjAwYTkzMmJlMDYzNjQ5ZmI4NWY5NTY3ZWJjMjc2OGIwIiwidXNlcl9pZCI6IjEifQ.ayiVjgcAqsBQZ8hdTZXs14Dn9trLVi6Iw7mrUh_pi8o",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY2NzM2ODg5LCJpYXQiOjE3NjY0Nzc2OTAsImp0aSI6ImU0Mzc0OTc2YmEwZTRlOTQ5YTBiYWNmYjZhMWUxODQ1IiwidXNlcl9pZCI6IjEiLCJkZXZpY2VfdG9rZW4iOiI0ZThiOTRiMjNkYjJhODI4ZTM5NWM1NTU5NWM0YzI0MWYwOTk2YTYyYTlhM2M0ZTBiOTBhN2IyYWEzZGE5MzI2In0.cIdwOUB5oISaqJlrWFr2v6oXv1UFIP-HFwppO7i0s4A",
 										"type": "text"
 									}
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"discount_value\": 100,\n    \"coupon_start\": \"2025-01-01T00:00:00Z\",\n    \"coupon_end\": \"2025-12-31T23:59:59Z\",\n    \"available_use_times\": 100,\n    \"min_order_value\": 500\n}"
+									"raw": "{\n    \"discount_value\": 10,\n    \"coupon_start\": \"2025-01-01T00:00:00Z\",\n    \"coupon_end\": \"2026-12-31T23:59:59Z\",\n    \"available_use_times\": 100,\n    \"min_order_value\": 300\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/products/dashboard/coupons/",
@@ -3355,7 +3628,13 @@
 							"name": "Get Order Details (Admin)",
 							"request": {
 								"method": "GET",
-								"header": [],
+								"header": [
+									{
+										"key": "auth",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY2OTMxNjgzLCJpYXQiOjE3NjY2NzI0ODMsImp0aSI6ImFmM2JkNjBkMGFhOTQ0NTNhNDhjYmY2ZWI5ZGFlMWIyIiwidXNlcl9pZCI6IjEifQ.hFfHUmwSBCqGY3F321Z9FMHxchS0p14PqlErm3ljZ6s",
+										"type": "text"
+									}
+								],
 								"url": {
 									"raw": "{{base_url}}/products/dashboard/pills/{{pill_id}}/",
 									"host": [
@@ -3697,6 +3976,124 @@
 						}
 					],
 					"description": "Rating management for admins"
+				},
+				{
+					"name": "Package Management",
+					"item": [
+						{
+							"name": "List All Package-Product Relationships",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{admin_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/packages/package-products/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"packages",
+										"package-products",
+										""
+									],
+									"query": [
+										{
+											"key": "package_product",
+											"value": "1",
+											"description": "Filter by package ID",
+											"disabled": true
+										},
+										{
+											"key": "related_product",
+											"value": "2",
+											"description": "Filter by related product ID",
+											"disabled": true
+										}
+									]
+								},
+								"description": "List all package-product relationships with optional filters"
+							},
+							"response": []
+						},
+						{
+							"name": "Add Books to Package",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{admin_token}}",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"package\": 1,\n    \"related_products\": [2, 3, 4]\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/packages/add-books/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"packages",
+										"add-books",
+										""
+									]
+								},
+								"description": "Add multiple books to a package. Returns: added (success), skipped (already in package), wrong_type (not book type or not found)"
+							},
+							"response": []
+						},
+						{
+							"name": "Remove Book from Package",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{admin_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/products/dashboard/packages/package-products/1/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"products",
+										"dashboard",
+										"packages",
+										"package-products",
+										"1",
+										""
+									]
+								},
+								"description": "Remove a book from a package by PackageProduct ID"
+							},
+							"response": []
+						}
+					],
+					"description": "Manage package products and their related books"
 				}
 			]
 		},
@@ -3720,7 +4117,7 @@
 							},
 							{
 								"key": "auth",
-								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY1NDc0ODM0LCJpYXQiOjE3NjUyMTU2MzQsImp0aSI6IjAwYTkzMmJlMDYzNjQ5ZmI4NWY5NTY3ZWJjMjc2OGIwIiwidXNlcl9pZCI6IjEifQ.ayiVjgcAqsBQZ8hdTZXs14Dn9trLVi6Iw7mrUh_pi8o",
+								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY2OTMxNjgzLCJpYXQiOjE3NjY2NzI0ODMsImp0aSI6ImFmM2JkNjBkMGFhOTQ0NTNhNDhjYmY2ZWI5ZGFlMWIyIiwidXNlcl9pZCI6IjEifQ.hFfHUmwSBCqGY3F321Z9FMHxchS0p14PqlErm3ljZ6s",
 								"type": "text"
 							}
 						],
@@ -3781,7 +4178,7 @@
 							},
 							{
 								"key": "auth",
-								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY0NDIwNzQ1LCJpYXQiOjE3NjQxNjE1NDUsImp0aSI6ImUwMDFlZmU1NTEyNzQzYmVhMTRkYzJlM2YzYTgyMDMxIiwidXNlcl9pZCI6IjEifQ.tuDrSayKpnbZgLMf-koBNQw321KVwORNjgCbvCbNMCk",
+								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY2OTMxNjgzLCJpYXQiOjE3NjY2NzI0ODMsImp0aSI6ImFmM2JkNjBkMGFhOTQ0NTNhNDhjYmY2ZWI5ZGFlMWIyIiwidXNlcl9pZCI6IjEifQ.hFfHUmwSBCqGY3F321Z9FMHxchS0p14PqlErm3ljZ6s",
 								"type": "text"
 							}
 						],
@@ -3790,7 +4187,7 @@
 							"raw": ""
 						},
 						"url": {
-							"raw": "{{base_url}}/analysis/best-sellers/",
+							"raw": "{{base_url}}/analysis/best-sellers/?limit=1",
 							"host": [
 								"{{base_url}}"
 							],
@@ -3812,13 +4209,7 @@
 								},
 								{
 									"key": "limit",
-									"value": "0",
-									"disabled": true
-								},
-								{
-									"key": "limit",
-									"value": "5",
-									"disabled": true
+									"value": "1"
 								}
 							]
 						}
@@ -3826,6 +4217,29 @@
 					"response": []
 				}
 			]
+		},
+		{
+			"name": "New Request",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://silverbook.easy-stream.net/products/dashboard/products/",
+					"protocol": "https",
+					"host": [
+						"silverbook",
+						"easy-stream",
+						"net"
+					],
+					"path": [
+						"products",
+						"dashboard",
+						"products",
+						""
+					]
+				}
+			},
+			"response": []
 		}
 	],
 	"auth": {
@@ -3842,6 +4256,16 @@
 		{
 			"key": "base_url",
 			"value": "http://localhost:8000",
+			"type": "string"
+		},
+		{
+			"key": "customer_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "admin_token",
+			"value": "",
 			"type": "string"
 		},
 		{
@@ -3914,6 +4338,10 @@
 		},
 		{
 			"key": "device_id",
+			"value": ""
+		},
+		{
+			"key": "special_product_id",
 			"value": ""
 		}
 	]

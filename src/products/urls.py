@@ -90,6 +90,14 @@ urlpatterns = [
     path('dashboard/purchased-books/<int:pk>/', views.AdminPurchasedBookRetrieveUpdateDestroyView.as_view(), name='admin-purchased-books-detail'),
     path('dashboard/purchased-books/by-user/<int:user_id>/', views.AdminUserPurchasedBooksView.as_view(), name='admin-user-purchased-books'),
 
+    # Package Product Endpoints
+    path('my-books/package/<int:product_id>/details/', views.MyPackageDetailsView.as_view(), name='my-package-details'),
+    path('products/<int:product_id>/related-products/', views.ProductRelatedProductsView.as_view(), name='product-related-products'),
+    path('dashboard/packages/add-books/', views.AddBooksToPackageView.as_view(), name='add-books-to-package'),
+    path('dashboard/packages/package-products/', views.PackageProductListView.as_view(), name='package-products-list'),
+    path('dashboard/packages/package-products/<int:package_id>/', views.PackageBooksListView.as_view(), name='package-books-list'),
+    path('dashboard/packages/package-products/delete/<int:pk>/', views.RemoveBookFromPackageView.as_view(), name='remove-book-from-package'),
+
     # Payment Endpoints (Fawaterak, Shakeout, EasyPay)
     path('api/payment/create/<int:pill_id>/', payment_views.create_payment_view, name='api_create_payment'),
     path('api/payment/webhook/fawaterak/', payment_views.fawaterak_webhook, name='api_fawaterak_webhook'),

@@ -72,7 +72,7 @@ class TeacherDetailView(generics.RetrieveAPIView):
         return Response(serializer.data)
 
 class ProductListView(generics.ListAPIView):
-    queryset = Product.objects.all()
+    queryset = Product.objects.filter(is_available=True)
     permission_classes = [IsAuthenticated]
     serializer_class = ProductSerializer
     filter_backends = [DjangoFilterBackend, rest_filters.SearchFilter]
@@ -1638,4 +1638,353 @@ class GeneratePresignedUploadUrlView(APIView):
         except Exception as e:
             logger.error(f"Error generating presigned URL: {str(e)}")
             return Response({'error': 'حدث خطأ أثناء إنشاء رابط التحميل، يرجى المحاولة لاحقًا.'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ========== Package Product Views ==========
+
+class MyPackageDetailsView(APIView):
+    """Get related products of a package that the user owns"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, product_id):
+        try:
+            product = Product.objects.get(id=product_id)
+            
+            if product.type != 'package':
+                return Response(
+                    {'message': 'هذا الكتاب ليس حزمة'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Check if user owns this package
+            purchased_package = PurchasedBook.objects.filter(
+                user=request.user,
+                product=product
+            ).first()
+            
+            if not purchased_package:
+                return Response(
+                    {'error': 'أنت لا تملك هذه الحزمة'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            # Get related products
+            from .models import PackageProduct
+            package_products = PackageProduct.objects.filter(
+                package_product=product
+            ).select_related('related_product').order_by('-created_at')
+            
+            books_list = []
+            for pp in package_products:
+                related = pp.related_product
+                books_list.append({
+                    'related_product_id': pp.id,
+                    'created_at': pp.created_at,
+                    'product_id': related.id,
+                    'product_number': related.product_number,
+                    'name': related.name,
+                    'type': related.type,
+                    'category_id': related.category.id if related.category else None,
+                    'category_name': related.category.name if related.category else None,
+                    'subject_id': related.subject.id if related.subject else None,
+                    'subject_name': related.subject.name if related.subject else None,
+                    'teacher_id': related.teacher.id if related.teacher else None,
+                    'teacher_name': related.teacher.name if related.teacher else None,
+                    'description': related.description,
+                    'base_image': get_full_file_url(related.base_image, request) if related.base_image else None,
+                    'main_image': get_full_file_url(related.main_image(), request) if related.main_image() else None,
+                    'pdf_file': get_full_file_url(related.pdf_file, request) if related.pdf_file else None,
+                    'year': related.year,
+                    'language': related.language,
+                    'is_available': related.is_available,
+                    'date_added': related.date_added,
+                    'average_rating': related.average_rating(),
+                    'number_of_ratings': related.number_of_ratings(),
+                })
+            
+            return Response(books_list, status=status.HTTP_200_OK)
+            
+        except Product.DoesNotExist:
+            return Response(
+                {'error': 'المنتج غير موجود'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            logger.error(f"Error getting package details: {str(e)}")
+            return Response(
+                {'error': 'حدث خطأ أثناء جلب تفاصيل الحزمة'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class ProductRelatedProductsView(APIView):
+    """Get related products of a package product (for browsing, not ownership required)"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, product_id):
+        try:
+            product = Product.objects.get(id=product_id)
+            
+            if product.type != 'package':
+                return Response(
+                    {'message': 'هذا الكتاب ليس حزمة'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Get related products
+            from .models import PackageProduct
+            package_products = PackageProduct.objects.filter(
+                package_product=product
+            ).select_related('related_product').order_by('-created_at')
+            
+            books_list = []
+            for pp in package_products:
+                related = pp.related_product
+                books_list.append({
+                    'related_product_id': pp.id,
+                    'created_at': pp.created_at,
+                    'product_id': related.id,
+                    'product_number': related.product_number,
+                    'name': related.name,
+                    'type': related.type,
+                    'category_id': related.category.id if related.category else None,
+                    'category_name': related.category.name if related.category else None,
+                    'subject_id': related.subject.id if related.subject else None,
+                    'subject_name': related.subject.name if related.subject else None,
+                    'teacher_id': related.teacher.id if related.teacher else None,
+                    'teacher_name': related.teacher.name if related.teacher else None,
+                    'description': related.description,
+                    'base_image': get_full_file_url(related.base_image, request) if related.base_image else None,
+                    'main_image': get_full_file_url(related.main_image(), request) if related.main_image() else None,
+                    'year': related.year,
+                    'language': related.language,
+                    'is_available': related.is_available,
+                    'date_added': related.date_added,
+                    'average_rating': related.average_rating(),
+                    'number_of_ratings': related.number_of_ratings(),
+                })
+            
+            return Response(books_list, status=status.HTTP_200_OK)
+            
+        except Product.DoesNotExist:
+            return Response(
+                {'error': 'المنتج غير موجود'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            logger.error(f"Error getting related products: {str(e)}")
+            return Response(
+                {'error': 'حدث خطأ أثناء جلب المنتجات المرتبطة'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class AddBooksToPackageView(APIView):
+    """Add books to a package (Dashboard endpoint)"""
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+        try:
+            package_id = request.data.get('package')
+            related_product_ids = request.data.get('related_products', [])
+            
+            if not package_id:
+                return Response(
+                    {'error': 'حقل package مطلوب'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if not related_product_ids or not isinstance(related_product_ids, list):
+                return Response(
+                    {'error': 'حقل related_products يجب أن يكون قائمة من معرفات المنتجات'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Get package product
+            try:
+                package = Product.objects.get(id=package_id)
+            except Product.DoesNotExist:
+                return Response(
+                    {'error': 'المنتج الحزمة غير موجود'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            if package.type != 'package':
+                return Response(
+                    {'error': 'المنتج المحدد ليس من نوع حزمة'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Process each related product
+            from .models import PackageProduct
+            added = []
+            skipped = []
+            wrong_type = []
+            
+            for product_id in related_product_ids:
+                try:
+                    related_product = Product.objects.get(id=product_id)
+                    
+                    # Check if it's a book
+                    if related_product.type != 'book':
+                        wrong_type.append({
+                            'id': product_id,
+                            'name': related_product.name,
+                            'type': related_product.type
+                        })
+                        continue
+                    
+                    # Check if already exists
+                    if PackageProduct.objects.filter(
+                        package_product=package,
+                        related_product=related_product
+                    ).exists():
+                        skipped.append({
+                            'id': product_id,
+                            'name': related_product.name
+                        })
+                        continue
+                    
+                    # Add to package
+                    PackageProduct.objects.create(
+                        package_product=package,
+                        related_product=related_product
+                    )
+                    added.append({
+                        'id': product_id,
+                        'name': related_product.name
+                    })
+                    
+                except Product.DoesNotExist:
+                    wrong_type.append({
+                        'id': product_id,
+                        'name': 'غير موجود',
+                        'type': 'not_found'
+                    })
+            
+            return Response({
+                'message': 'تمت العملية بنجاح',
+                'added': added,
+                'skipped': skipped,
+                'wrong_type': wrong_type,
+                'summary': {
+                    'total_requested': len(related_product_ids),
+                    'added_count': len(added),
+                    'skipped_count': len(skipped),
+                    'wrong_type_count': len(wrong_type)
+                }
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error adding books to package: {str(e)}")
+            return Response(
+                {'error': 'حدث خطأ أثناء إضافة الكتب للحزمة'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class RemoveBookFromPackageView(APIView):
+    """Remove a book from a package (Dashboard endpoint)"""
+    permission_classes = [IsAdminUser]
+
+    def delete(self, request, pk):
+        try:
+            from .models import PackageProduct
+            package_product = PackageProduct.objects.get(id=pk)
+            package_name = package_product.package_product.name
+            book_name = package_product.related_product.name
+            package_product.delete()
+            
+            return Response({
+                'message': f'تم حذف الكتاب "{book_name}" من الحزمة "{package_name}" بنجاح'
+            }, status=status.HTTP_200_OK)
+            
+        except PackageProduct.DoesNotExist:
+            return Response(
+                {'error': 'العلاقة غير موجودة'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            logger.error(f"Error removing book from package: {str(e)}")
+            return Response(
+                {'error': 'حدث خطأ أثناء حذف الكتاب من الحزمة'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class PackageProductListView(generics.ListAPIView):
+    """List all package-product relationships (Dashboard)"""
+    permission_classes = [IsAdminUser]
+    serializer_class = PackageProductSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['package_product', 'related_product']
+
+    def get_queryset(self):
+        from .models import PackageProduct
+        return PackageProduct.objects.all().select_related('package_product', 'related_product')
+
+
+class PackageBooksListView(APIView):
+    """Get all books in a specific package (Dashboard)"""
+    permission_classes = [IsAdminUser]
+
+    def get(self, request, package_id):
+        try:
+            # Verify package exists and is a package type
+            package = Product.objects.get(id=package_id)
+            
+            if package.type != 'package':
+                return Response(
+                    {'error': 'المنتج المحدد ليس من نوع حزمة'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Get all related books
+            from .models import PackageProduct
+            package_products = PackageProduct.objects.filter(
+                package_product=package
+            ).select_related('related_product').order_by('-created_at')
+            
+            books_list = []
+            for pp in package_products:
+                related = pp.related_product
+                books_list.append({
+                    'related_product_id': pp.id,
+                    'created_at': pp.created_at,
+                    'product_id': related.id,
+                    'product_number': related.product_number,
+                    'name': related.name,
+                    'type': related.type,
+                    'category_id': related.category.id if related.category else None,
+                    'category_name': related.category.name if related.category else None,
+                    'subject_id': related.subject.id if related.subject else None,
+                    'subject_name': related.subject.name if related.subject else None,
+                    'teacher_id': related.teacher.id if related.teacher else None,
+                    'teacher_name': related.teacher.name if related.teacher else None,
+                    'description': related.description,
+                    'base_image': get_full_file_url(related.base_image, request) if related.base_image else None,
+                    'main_image': get_full_file_url(related.main_image(), request) if related.main_image() else None,
+                    'pdf_file': get_full_file_url(related.pdf_file, request) if related.pdf_file else None,
+                    'year': related.year,
+                    'language': related.language,
+                    'is_available': related.is_available,
+                    'date_added': related.date_added,
+                    'average_rating': related.average_rating(),
+                    'number_of_ratings': related.number_of_ratings(),
+                })
+            
+            return Response(books_list, status=status.HTTP_200_OK)
+            
+        except Product.DoesNotExist:
+            return Response(
+                {'error': 'المنتج غير موجود'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            logger.error(f"Error getting package books: {str(e)}")
+            return Response(
+                {'error': 'حدث خطأ أثناء جلب كتب الحزمة'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 
