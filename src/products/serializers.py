@@ -12,7 +12,7 @@ from .models import (
     PillItem, ProductDescription,
     SpecialProduct,
     SubCategory, Product, ProductImage, Rating, Pill, Subject, Teacher,
-    PurchasedBook
+    PurchasedBook, PackageProduct
 )
 
 
@@ -222,6 +222,7 @@ class ProductSerializer(serializers.ModelSerializer):
     teacher_image = serializers.SerializerMethodField()
     sub_category_id = serializers.SerializerMethodField()
     sub_category_name = serializers.SerializerMethodField()
+    related_products = serializers.SerializerMethodField()
     
     # Override file fields - accept strings on write, return full URLs on read
     pdf_file = serializers.CharField(max_length=500, required=False, allow_blank=True, allow_null=True)
@@ -230,12 +231,12 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = [
-            'id', 'product_number','name','year','category','sub_category','subject' ,'teacher', 
+            'id', 'product_number','name','type','year','category','sub_category','subject' ,'teacher', 
             'category_id', 'category_name', 'subject_id' ,'subject_name', 'teacher_id','teacher_name','teacher_image', 
             'sub_category_id', 'sub_category_name', 'price', 'description', 'date_added', 'discounted_price',
             'has_discount', 'current_discount', 'discount_expiry', 'main_image', 'images', 'number_of_ratings',
-            'average_rating', 'descriptions', 'pdf_file', 'base_image',
-            'page_count', 'file_size_mb', 'language', 'is_available'
+            'average_rating', 'descriptions', 'base_image',
+            'language', 'is_available', 'related_products'
         ]
         read_only_fields = [
             'product_number', 'date_added'
@@ -245,12 +246,6 @@ class ProductSerializer(serializers.ModelSerializer):
         """Override to return full URLs for file fields"""
         ret = super().to_representation(instance)
         request = self.context.get('request')
-        
-        # Convert pdf_file to full URL
-        if instance.pdf_file:
-            ret['pdf_file'] = get_full_file_url(instance.pdf_file, request)
-        else:
-            ret['pdf_file'] = None
             
         # Convert base_image to full URL
         if instance.base_image:
@@ -337,6 +332,41 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def get_average_rating(self, obj):
         return obj.average_rating()
+    
+    def get_related_products(self, obj):
+        """Return list of related products if this is a package, otherwise empty list."""
+        if obj.type == 'package':
+            from .models import PackageProduct
+            package_products = PackageProduct.objects.filter(package_product=obj).select_related('related_product').order_by('-created_at')
+            related_items = []
+            request = self.context.get('request')
+            for pp in package_products:
+                related = pp.related_product
+                related_items.append({
+                    'id': pp.id,
+                    'created_at': pp.created_at,
+                    'product_id': related.id,
+                    'product_number': related.product_number,
+                    'name': related.name,
+                    'type': related.type,
+                    'category_id': related.category.id if related.category else None,
+                    'category_name': related.category.name if related.category else None,
+                    'subject_id': related.subject.id if related.subject else None,
+                    'subject_name': related.subject.name if related.subject else None,
+                    'teacher_id': related.teacher.id if related.teacher else None,
+                    'teacher_name': related.teacher.name if related.teacher else None,
+                    'description': related.description,
+                    'base_image': get_full_file_url(related.base_image, request) if related.base_image else None,
+                    'main_image': get_full_file_url(related.main_image(), request) if related.main_image() else None,
+                    'year': related.year,
+                    'language': related.language,
+                    'is_available': related.is_available,
+                    'date_added': related.date_added,
+                    'average_rating': related.average_rating(),
+                    'number_of_ratings': related.number_of_ratings(),
+                })
+            return related_items
+        return []
     
     def validate(self, data):
         """Validate that product name is unique per subject, teacher, and year"""
@@ -1106,9 +1136,6 @@ class PurchasedBookSerializer(serializers.ModelSerializer):
     product_id = serializers.IntegerField(source='product.id', read_only=True)
     pill_id = serializers.IntegerField(source='pill.id', read_only=True, allow_null=True)
     pill_number = serializers.CharField(source='pill.pill_number', read_only=True, allow_null=True)
-    user_id = serializers.IntegerField(source='user.id', read_only=True)
-    username = serializers.CharField(source='user.username', read_only=True)
-    user_name = serializers.CharField(source='user.name', read_only=True)
     
     # Write fields (for create/update)
     user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), write_only=True)
@@ -1118,6 +1145,7 @@ class PurchasedBookSerializer(serializers.ModelSerializer):
     
     product_number = serializers.SerializerMethodField()
     name = serializers.SerializerMethodField()
+    type = serializers.SerializerMethodField()
     year = serializers.SerializerMethodField()
     category_id = serializers.SerializerMethodField()
     category_name = serializers.SerializerMethodField()
@@ -1138,17 +1166,16 @@ class PurchasedBookSerializer(serializers.ModelSerializer):
     class Meta:
         model = PurchasedBook
         fields = [
-            'id', 'user', 'user_id', 'username', 'user_name',
+            'id', 'user',
             'product', 'product_id', 'product_number', 
             'pill', 'pill_id', 'pill_number',
             'pill_item', 'product_name', 'created_at',
-            'name', 'year', 'category_id', 'category_name', 'subject_id', 'subject_name',
+            'name', 'type', 'year', 'category_id', 'category_name', 'subject_id', 'subject_name',
             'teacher_id', 'teacher_name', 'sub_category_id', 'sub_category_name',
             'main_image', 'number_of_ratings', 'average_rating', 'pdf_file',
             'page_count', 'file_size_mb', 'language'
         ]
-    read_only_fields = ['id', 'created_at', 'product_id', 'pill_id', 'pill_number',
-                           'user_id', 'username', 'user_name']
+        read_only_fields = ['id', 'created_at', 'product_id', 'pill_id', 'pill_number']
 
     def _product(self, obj):
         return getattr(obj, 'product', None)
@@ -1166,6 +1193,10 @@ class PurchasedBookSerializer(serializers.ModelSerializer):
     def get_name(self, obj):
         product = self._product(obj)
         return product.name if product else None
+
+    def get_type(self, obj):
+        product = self._product(obj)
+        return product.type if product else None
 
     def get_year(self, obj):
         product = self._product(obj)
@@ -1361,6 +1392,101 @@ class UserCartSerializer(serializers.Serializer):
         ret = super().to_representation(instance)
         ret['product'] = ProductSerializer(instance.product, context=self.context).data
         return ret
+
+
+class PackageProductSerializer(serializers.ModelSerializer):
+    """Serializer for PackageProduct model with detailed product data"""
+    package_product = serializers.SerializerMethodField()
+    related_product = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PackageProduct
+        fields = ['id', 'created_at', 'package_product', 'related_product']
+        read_only_fields = ['id', 'created_at']
+
+    def get_package_product(self, obj):
+        """Return package product details without images, pdf, page_count, etc."""
+        package = obj.package_product
+        request = self.context.get('request')
+        
+        return {
+            'id': package.id,
+            'product_number': package.product_number,
+            'name': package.name,
+            'type': package.type,
+            'category_id': package.category.id if package.category else None,
+            'category_name': package.category.name if package.category else None,
+            'subject_id': package.subject.id if package.subject else None,
+            'subject_name': package.subject.name if package.subject else None,
+            'teacher_id': package.teacher.id if package.teacher else None,
+            'teacher_name': package.teacher.name if package.teacher else None,
+            'price': package.price,
+            'discounted_price': package.discounted_price(),
+            'has_discount': package.has_discount(),
+            'description': package.description,
+            'base_image': get_full_file_url(package.base_image, request) if package.base_image else None,
+            'year': package.year,
+            'is_available': package.is_available,
+            'date_added': package.date_added,
+        }
+
+    def get_related_product(self, obj):
+        """Return related product details without prices"""
+        related = obj.related_product
+        request = self.context.get('request')
+        
+        return {
+            'id': related.id,
+            'product_number': related.product_number,
+            'name': related.name,
+            'type': related.type,
+            'category_id': related.category.id if related.category else None,
+            'category_name': related.category.name if related.category else None,
+            'subject_id': related.subject.id if related.subject else None,
+            'subject_name': related.subject.name if related.subject else None,
+            'teacher_id': related.teacher.id if related.teacher else None,
+            'teacher_name': related.teacher.name if related.teacher else None,
+            'description': related.description,
+            'base_image': get_full_file_url(related.base_image, request) if related.base_image else None,
+            'main_image': get_full_file_url(related.main_image(), request) if related.main_image() else None,
+            'pdf_file': get_full_file_url(related.pdf_file, request) if related.pdf_file else None,
+            'year': related.year,
+            'language': related.language,
+            'is_available': related.is_available,
+            'date_added': related.date_added,
+            'average_rating': related.average_rating(),
+            'number_of_ratings': related.number_of_ratings(),
+        }
+
+    def validate(self, data):
+        """Validate that package_product is a package and related_product is a book."""
+        package = data.get('package_product')
+        related = data.get('related_product')
+        
+        if package and package.type != 'package':
+            raise serializers.ValidationError({'package_product': 'يجب أن يكون المنتج من نوع حزمة.'})
+        if related and related.type != 'book':
+            raise serializers.ValidationError({'related_product': 'يجب أن يكون المنتج المرتبط من نوع كتاب.'})
+        if package and related and package.id == related.id:
+            raise serializers.ValidationError('لا يمكن ربط المنتج بنفسه.')
+        
+        return data
+
+
+class AddBooksToPackageSerializer(serializers.Serializer):
+    """Serializer for adding multiple books to a package"""
+    package = serializers.PrimaryKeyRelatedField(queryset=Product.objects.filter(type='package'))
+    related_products = serializers.ListField(
+        child=serializers.IntegerField(),
+        allow_empty=False,
+        help_text="List of product IDs to add to the package"
+    )
+
+    def validate_related_products(self, value):
+        """Ensure all IDs exist in the database"""
+        if not value:
+            raise serializers.ValidationError("يجب تحديد منتج واحد على الأقل.")
+        return value
 
 
 

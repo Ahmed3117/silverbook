@@ -6,7 +6,7 @@ from django.http import HttpResponse
 from .models import (
     Category, SubCategory, Subject, Teacher, Product, ProductImage, ProductDescription,
     PillItem, Pill, CouponDiscount, Rating, Discount, LovedProduct,
-    SpecialProduct, BestProduct, PurchasedBook
+    SpecialProduct, BestProduct, PurchasedBook, PackageProduct
 )
 
 import json
@@ -97,15 +97,31 @@ class DiscountInline(admin.TabularInline):
     extra = 0
     fields = ('discount', 'discount_start', 'discount_end', 'is_active')
 
+class PackageProductInline(admin.TabularInline):
+    model = PackageProduct
+    extra = 1
+    fk_name = 'package_product'
+    verbose_name = 'Related Book'
+    verbose_name_plural = 'Related Books in Package'
+    autocomplete_fields = ['related_product']
+
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('name','product_number', 'get_image_preview', 'category', 'price', 'average_rating', 'date_added')
-    list_filter = ('category', 'date_added')
+    list_display = ('name','product_number', 'type', 'get_image_preview', 'category', 'price', 'average_rating', 'date_added')
+    list_filter = ('category', 'type', 'date_added')
     search_fields = ('name', 'description')
     autocomplete_fields = ('category', 'sub_category')
     readonly_fields = ('average_rating', 'number_of_ratings')
-    inlines = [ProductImageInline, ProductDescriptionInline, DiscountInline]
+    inlines = [ProductImageInline, ProductDescriptionInline, DiscountInline, PackageProductInline]
     list_select_related = ('category',)
+
+    def get_inline_instances(self, request, obj=None):
+        """Only show PackageProductInline for package type products"""
+        inline_instances = super().get_inline_instances(request, obj)
+        if obj and obj.type != 'package':
+            # Filter out PackageProductInline for non-package products
+            inline_instances = [inline for inline in inline_instances if not isinstance(inline, PackageProductInline)]
+        return inline_instances
 
     @admin.display(description='Image')
     def get_image_preview(self, obj):
@@ -649,6 +665,12 @@ class PurchasedBookAdmin(admin.ModelAdmin):
     search_fields = ('product_name', 'user__username', 'user__name', 'pill__pill_number')
 
 
+@admin.register(PackageProduct)
+class PackageProductAdmin(admin.ModelAdmin):
+    list_display = ('package_product', 'related_product', 'created_at')
+    list_filter = ('created_at',)
+    search_fields = ('package_product__name', 'related_product__name')
+    autocomplete_fields = ('package_product', 'related_product')
 
 
 admin.site.register(ProductImage)
